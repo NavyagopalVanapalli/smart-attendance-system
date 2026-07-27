@@ -165,7 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateSummary();
 
       // START LIVE POLLING FOR AUTOMATIC QR SCAN TOGGLE
-      startLivePolling(dept, rawHour, date);
+      //startLivePolling(dept, rawHour, date);
 
     } catch (err) {
       console.error("Fetch error:", err);

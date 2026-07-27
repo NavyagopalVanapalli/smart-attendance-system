@@ -129,10 +129,20 @@ app.get('/api/students', (req, res) => {
 // GET REAL-TIME ATTENDANCE STATUS FOR A SPECIFIC HOUR & DATE
 app.get('/api/attendance/live', (req, res) => {
   const { dept, hour, date } = req.query;
-  const sql = `SELECT roll_no, status FROM attendance WHERE dept_code = ? AND hour = ? AND date = ?`;
-  
-  db.query(sql, [dept, hour, date], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+
+  // Fetch only records created in the last 15 minutes for this live session
+  const query = `
+    SELECT roll_no, status 
+    FROM attendance 
+    WHERE dept = ? AND hour = ? AND date = ? AND status = 'Present'
+    AND created_at >= NOW() - INTERVAL 15 MINUTE
+  `;
+
+  db.query(query, [dept, hour, date], (err, results) => {
+    if (err) {
+      console.error("Error fetching live attendance:", err);
+      return res.status(500).json({ error: "Database query failed" });
+    }
     res.json(results);
   });
 });
