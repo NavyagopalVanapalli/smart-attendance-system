@@ -218,7 +218,7 @@ app.post('/api/qr/generate-location', (req, res) => {
 
 // ROUTE TO SERVE STUDENT SCANNER PAGE
 app.get('/student', (req, res) => {
-  res.sendFile(path.join(__dirname, 'student.html'));
+  res.sendFile(path.join(__dirname, 'public', 'student.html'));
 });
 
 // STUDENT QR ATTENDANCE VERIFICATION & RECORDING

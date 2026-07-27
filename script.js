@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
-
+  const API_BASE_URL = `${window.location.origin}/api`;
   const dateInput = document.getElementById("attendanceDate");
   if (dateInput) dateInput.valueAsDate = new Date();
 
@@ -611,24 +610,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const data = await response.json();
 
-          if (data.success) {
-            if (qrCodeContainer) qrCodeContainer.innerHTML = "";
-            
-            // Dynamically construct URL using host IP/Domain
-            const studentAccessUrl = `${window.location.protocol}//${window.location.hostname}:5000/student?sessionId=${encodeURIComponent(data.sessionId)}`;
+     if (data.success) {
+  if (qrCodeContainer) qrCodeContainer.innerHTML = "";
+  
+  // Construct dynamic student URL using active sessionId from backend response
+  const studentAccessUrl = `${window.location.origin}/student?sessionId=${data.sessionId}`;
 
-            if (typeof QRCode !== "undefined" && qrCodeContainer) {
-              new QRCode(qrCodeContainer, {
-                text: studentAccessUrl,
-                width: 220,
-                height: 220
-              });
-            }
-            if (qrInfoText) {
-              qrInfoText.textContent = `${deptSelect.value} - ${secSelect.value} | Scan to Mark Attendance 📍`;
-            }
-            if (qrModal) qrModal.classList.remove("hidden");
-          }
+  if (typeof QRCode !== "undefined" && qrCodeContainer) {
+    new QRCode(qrCodeContainer, {
+      text: studentAccessUrl,
+      width: 220,
+      height: 220
+    });
+  }
+  if (qrInfoText) {
+    qrInfoText.textContent = `${deptSelect.value} - ${secSelect.value} | Scan to Mark Attendance 📍`;
+  }
+  if (qrModal) qrModal.classList.remove("hidden");
+}
         } catch (err) {
           alert("Failed to connect to backend server.");
         }
