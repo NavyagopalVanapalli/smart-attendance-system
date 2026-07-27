@@ -124,8 +124,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-        // FORCE DEFAULT TO ABSENT UNLESS EXPLICITLY SAVED AS PRESENT IN CURRENT SESSION
-        const isChecked = savedState ? savedState.checked : false;
+       // FORCE EVERY STUDENT TO DEFAULT TO ABSENT ON PAGE LOAD
+        const isChecked = false;
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
         const statusText = isChecked ? "Present" : "Absent";
