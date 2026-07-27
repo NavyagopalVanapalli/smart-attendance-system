@@ -3,6 +3,7 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors({
@@ -11,7 +12,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
-app.use(express.static(__dirname)); // Serve static files like student.html
+app.use(express.static(__dirname)); // Serve static files
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH = process.env.TWILIO_AUTH_TOKEN;
@@ -47,14 +48,13 @@ async function sendWhatsAppMessage(phoneNumber, message) {
   }
 }
 
-// MYSQL CONNECTION
 // MYSQL CONNECTION USING ENVIRONMENT VARIABLES
 const db = mysql.createConnection({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'Haveaniceday@1', 
-  database: process.env.DB_NAME || 'college_attendance_db',
+  database: process.env.DB_NAME || 'defaultdb',
   ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
 });
 
@@ -65,9 +65,8 @@ db.connect((err) => {
     console.log('✅ Connected to MySQL Database!');
   }
 });
-// ==========================================
+
 // HAVERSINE FORMULA (GPS Distance Calculation)
-// ==========================================
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // Earth radius in meters
   const rad = Math.PI / 180;
@@ -197,7 +196,6 @@ let activeQrSessions = {};
 app.post('/api/qr/generate-location', (req, res) => {
   const { dept, year, section, hour, date, teacherLat, teacherLng, teacherId } = req.body;
   
-  // Format clean session identifier
   const cleanHour = hour.split(' ')[0];
   const sessionId = `${dept}_${year.replace(/\s+/g, '')}_${section.replace(/\s+/g, '')}_${cleanHour}_${date}`;
 
@@ -216,10 +214,26 @@ app.post('/api/qr/generate-location', (req, res) => {
   });
 });
 
-// ROUTE TO SERVE STUDENT SCANNER PAGE
-app.get('/student', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'student.html'));
-});
+// ROBUST ROUTE TO SERVE STUDENT SCANNER PAGE (Case-insensitive check)
+const serveStudentPage = (req, res) => {
+  const possiblePaths = [
+    path.join(__dirname, 'student.html'),
+    path.join(__dirname, 'Student.html'),
+    path.join(__dirname, 'public', 'student.html'),
+    path.join(__dirname, 'public', 'Student.html')
+  ];
+
+  for (const filePath of possiblePaths) {
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+  res.status(404).send("student.html file missing from server repository.");
+};
+
+app.get('/student', serveStudentPage);
+app.get('/student.html', serveStudentPage);
+app.get('/Student.html', serveStudentPage);
 
 // STUDENT QR ATTENDANCE VERIFICATION & RECORDING
 app.post('/api/qr/verify-student', (req, res) => {
@@ -242,7 +256,6 @@ app.post('/api/qr/verify-student', (req, res) => {
     parseFloat(studentLng)
   );
 
-  // STRICT 30-METER CLASSROOM BOUNDARY
   const MAX_RADIUS_METERS = 30; 
 
   if (distance > MAX_RADIUS_METERS) {
@@ -252,7 +265,6 @@ app.post('/api/qr/verify-student', (req, res) => {
     });
   }
 
-  // Ensure student belongs to the department/section of active session
   const verifyStudentSql = `SELECT full_name FROM students WHERE roll_no = ? AND dept_code = ?`;
   db.query(verifyStudentSql, [rollNo, session.dept], (err, studentResults) => {
     if (err) return res.status(500).json({ success: false, message: "Database verification error." });
@@ -262,14 +274,14 @@ app.post('/api/qr/verify-student', (req, res) => {
     }
 
     const studentName = studentResults[0].full_name;
-    const sql = `INSERT INTO attendance (date, hour, teacher_id, roll_no, status) 
-                 VALUES (?, ?, ?, ?, 'Present') 
+    const sql = `INSERT INTO attendance (date, hour, teacher_id, roll_no, dept_code, status) 
+                 VALUES (?, ?, ?, ?, ?, 'Present') 
                  ON DUPLICATE KEY UPDATE status='Present'`;
 
-    db.query(sql, [session.date, session.hour, session.teacherId, rollNo], (err, result) => {
+    db.query(sql, [session.date, session.hour, session.teacherId, rollNo, session.dept], (err, result) => {
       if (err) {
         console.error("Database error during QR attendance:", err);
-        return res.status(500).json({ success: false, message: "Database error recording attendance. Ensure UNIQUE KEY exists on attendance table." });
+        return res.status(500).json({ success: false, message: "Database error recording attendance." });
       }
 
       res.json({ 
@@ -304,7 +316,7 @@ app.delete('/api/students/delete', (req, res) => {
 });
 
 // START SERVER
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
 });
