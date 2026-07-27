@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (dateInput) dateInput.valueAsDate = new Date();
 
   let attendanceStateMemory = JSON.parse(localStorage.getItem("attendanceStateMemory")) || {};
+  let pollingInterval = null; // Holds the real-time polling timer
 
   const loginSection = document.getElementById("loginSection");
   const dashboardSection = document.getElementById("dashboardSection");
@@ -88,11 +89,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   async function renderStudentTable() {
+    // Clear any existing live polling timer when changing filters
+    if (pollingInterval) clearInterval(pollingInterval);
+
     const dept = deptSelect ? deptSelect.value : "";
     const year = yearSelect ? yearSelect.value : "";
     const sec = secSelect ? secSelect.value : "";
     const rawHour = hourSelect ? hourSelect.value : "";
-    const activeHour = rawHour ? rawHour.split(" ")[0] + " " + rawHour.split(" ")[1] : "";
+    const date = dateInput ? dateInput.value : "";
+    const activeHour = rawHour ? rawHour.split(" ")[0] + " " + (rawHour.split(" ")[1] || "") : "";
 
     const badge = document.getElementById("activeSectionBadge");
     if (badge) badge.textContent = `${dept} - ${year} (${sec}) | ${activeHour}`;
@@ -119,7 +124,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-        const isChecked = savedState ? savedState.checked : true;
+        // REQUIREMENT 2: DEFAULT ALL STUDENTS TO ABSENT
+        const isChecked = savedState ? savedState.checked : false;
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
         const statusText = isChecked ? "Present" : "Absent";
@@ -134,13 +140,17 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="parent-phone">${student.parent_phone}</td>
           <td>
             <label class="switch">
-              <input type="checkbox" class="attendance-toggle" ${isChecked ? 'checked' : ''} data-student-name="${student.full_name}" data-parent-phone="${student.parent_phone}">
+              <input type="checkbox" class="attendance-toggle" ${isChecked ? 'checked' : ''} data-roll="${student.roll_no}" data-student-name="${student.full_name}" data-parent-phone="${student.parent_phone}">
               <span class="slider round"></span>
             </label>
             <span class="status-text ${statusClass}">${statusText}</span>
           </td>
           <td><span class="status-pill ${pillClass}">${smsStatus}</span></td>
-          <td style="text-align: center;">
+          <td style="text-align: center; display: flex; gap: 8px; justify-content: center; align-items: center;">
+            <!-- REQUIREMENT 3: DEDICATED WHATSAPP BUTTON -->
+            <button class="whatsapp-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" data-phone="${student.parent_phone}" title="Send WhatsApp to Parent" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+              💬 WhatsApp
+            </button>
             <button class="delete-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" title="Delete Student" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem;">
               🗑️
             </button>
@@ -150,11 +160,52 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       attachToggleListeners();
+      attachWhatsAppListeners();
       attachDeleteListeners();
       updateSummary();
+
+      // REQUIREMENT 2: START LIVE POLLING FOR AUTOMATIC SCAN TOGGLE
+      startLivePolling(dept, rawHour, date);
+
     } catch (err) {
       console.error("Fetch error:", err);
     }
+  }
+
+  // REAL-TIME POLLING FUNCTION: Auto-flips toggle to Present when student scans
+  function startLivePolling(dept, hour, date) {
+    if (!dept || !hour || !date) return;
+
+    pollingInterval = setInterval(async () => {
+      try {
+        const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(hour)}&date=${encodeURIComponent(date)}`);
+        const liveData = await liveRes.json();
+
+        if (Array.isArray(liveData)) {
+          liveData.forEach(record => {
+            if (record.status === 'Present') {
+              const row = document.querySelector(`#studentTableBody tr[data-student-id="${record.roll_no}"]`);
+              if (row) {
+                const toggle = row.querySelector(".attendance-toggle");
+                const statusText = row.querySelector(".status-text");
+
+                if (toggle && !toggle.checked) {
+                  toggle.checked = true; // Auto-move toggle to Present!
+                  if (statusText) {
+                    statusText.textContent = "Present";
+                    statusText.className = "status-text text-present";
+                  }
+                  saveCurrentStateToMemory();
+                  updateSummary();
+                }
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Live polling error:", e);
+      }
+    }, 3000); // Check database every 3 seconds
   }
 
   function attachDeleteListeners() {
@@ -185,80 +236,42 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const confirmationModal = document.getElementById("confirmationModal");
-  const confirmSendSmsBtn = document.getElementById("confirmSendSmsBtn");
-  const confirmNoSmsBtn = document.getElementById("confirmNoSmsBtn");
-  const cancelModalBtn = document.getElementById("cancelModalBtn");
-  let activeToggle = null;
-
-  function attachToggleListeners() {
-    document.querySelectorAll(".attendance-toggle").forEach(toggle => {
-      toggle.addEventListener("change", (e) => {
-        if (!e.target.checked) {
-          e.target.checked = true;
-          activeToggle = e.target;
-
-          const studentName = e.target.getAttribute("data-student-name");
-          const parentPhone = e.target.getAttribute("data-parent-phone");
-
-          if (document.getElementById("modalStudentName")) document.getElementById("modalStudentName").textContent = studentName;
-          if (document.getElementById("modalParentPhone")) document.getElementById("modalParentPhone").textContent = parentPhone;
-          if (document.getElementById("smsPreviewText")) {
-            document.getElementById("smsPreviewText").textContent = 
-              `"Dear Parent, your child ${studentName} was marked ABSENT today (${dateInput.value}) during ${hourSelect.value} for ${deptSelect.value} ${secSelect.value}."`;
-          }
-
-          if (confirmationModal) confirmationModal.classList.remove("hidden");
-        } else {
-          updateRowStatus(e.target, true, "Not Sent");
-        }
-      });
-    });
-  }
-
-  if (confirmSendSmsBtn) {
-    confirmSendSmsBtn.addEventListener("click", () => {
-      if (activeToggle) {
-        const toggle = activeToggle;
-        const rawPhone = toggle.getAttribute("data-parent-phone");
-        const studentName = toggle.getAttribute("data-student-name");
+  // REQUIREMENT 3: DEDICATED WHATSAPP BUTTON EVENT LISTENER
+  function attachWhatsAppListeners() {
+    document.querySelectorAll(".whatsapp-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const studentName = e.currentTarget.getAttribute("data-name");
+        const rawPhone = e.currentTarget.getAttribute("data-phone");
+        const rollNo = e.currentTarget.getAttribute("data-roll");
 
         let cleanPhone = rawPhone.replace(/\D/g, "");
         if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
-        const messageText = `Dear Parent, your child ${studentName} was marked ABSENT today (${dateInput.value}) during ${hourSelect.value} for ${deptSelect.value} ${secSelect.value}.`;
+        const messageText = `Dear Parent, your child ${studentName} (${rollNo}) was marked ABSENT today (${dateInput.value}) during ${hourSelect.value} for ${deptSelect.value} ${secSelect.value}.`;
         const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
 
-        toggle.checked = false;
-        updateRowStatus(toggle, false, "WhatsApp Opened");
+        const row = e.currentTarget.closest("tr");
+        const smsPill = row ? row.querySelector(".status-pill") : null;
+        if (smsPill) {
+          smsPill.textContent = "WhatsApp Opened";
+          smsPill.className = "status-pill pill-sent";
+        }
+
+        saveCurrentStateToMemory();
         window.open(whatsappUrl, "_blank");
-      }
-      closeModal();
+      });
     });
   }
 
-  if (confirmNoSmsBtn) {
-    confirmNoSmsBtn.addEventListener("click", () => {
-      if (activeToggle) {
-        activeToggle.checked = false;
-        updateRowStatus(activeToggle, false, "No SMS");
-      }
-      closeModal();
+  // MANUAL TOGGLE SWITCH LISTENER
+  function attachToggleListeners() {
+    document.querySelectorAll(".attendance-toggle").forEach(toggle => {
+      toggle.addEventListener("change", (e) => {
+        const row = e.target.closest("tr");
+        const isChecked = e.target.checked;
+        updateRowStatus(e.target, isChecked, isChecked ? "Not Sent" : "No SMS");
+      });
     });
-  }
-
-  if (cancelModalBtn) {
-    cancelModalBtn.addEventListener("click", () => {
-      if (activeToggle) activeToggle.checked = true;
-      closeModal();
-    });
-  }
-
-  function closeModal() {
-    if (confirmationModal) confirmationModal.classList.add("hidden");
-    activeToggle = null;
-    saveCurrentStateToMemory();
-    updateSummary();
   }
 
   function updateRowStatus(toggle, isPresent, smsStatus) {
@@ -280,6 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
         : "status-pill pill-neutral";
     }
     saveCurrentStateToMemory();
+    updateSummary();
   }
 
   function updateSummary() {
@@ -331,6 +345,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // THEME SWITCHER
   const themeToggleBtn = document.getElementById("themeToggleBtn");
   document.body.classList.remove("dark-theme");
 
@@ -347,6 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // LOGIN BUTTON
   const loginBtn = document.getElementById("loginBtn");
   if (loginBtn) {
     loginBtn.addEventListener("click", async (e) => {
@@ -384,8 +400,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // LOGOUT BUTTON
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
+      if (pollingInterval) clearInterval(pollingInterval);
       localStorage.removeItem("activeTeacher");
       localStorage.removeItem("college_attendance_filters");
       localStorage.removeItem("attendanceStateMemory");
@@ -398,6 +416,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ADD STUDENT MODAL
   const addStudentModal = document.getElementById("addStudentModal");
   const openAddStudentModalBtn = document.getElementById("openAddStudentModalBtn");
   const closeAddStudentModalBtn = document.getElementById("closeAddStudentModalBtn");
@@ -456,6 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // SUBMIT ATTENDANCE TO DATABASE
   const submitAttendanceBtn = document.getElementById("submitAttendanceBtn");
   if (submitAttendanceBtn) {
     submitAttendanceBtn.addEventListener("click", async () => {
@@ -491,6 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
             date: dateInput.value,
             hour: hourSelect.value,
             teacherId: teacher.teacher_id,
+            dept: deptSelect.value,
             records: records
           })
         });
@@ -507,6 +528,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // CHANGE PASSWORD MODAL
   const changePasswordModal = document.getElementById("changePasswordModal");
   const openChangePasswordBtn = document.getElementById("changePasswordBtn");
   const closePasswordModalBtn = document.getElementById("closePasswordModalBtn");
@@ -567,7 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Location-Bound QR Code Generator
+  // LOCATION-BOUND QR CODE GENERATOR
   const generateQrBtn = document.getElementById("generateQrBtn");
   const qrModal = document.getElementById("qrModal");
   const closeQrModalBtn = document.getElementById("closeQrModalBtn");
@@ -610,24 +632,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const data = await response.json();
 
-     if (data.success) {
-  if (qrCodeContainer) qrCodeContainer.innerHTML = "";
-  
-  // Construct dynamic student URL using active sessionId from backend response
-  const studentAccessUrl = `${window.location.origin}/student?sessionId=${data.sessionId}`;
+          if (data.success) {
+            if (qrCodeContainer) qrCodeContainer.innerHTML = "";
+            
+            // Construct dynamic student URL using active sessionId
+            const studentAccessUrl = `${window.location.origin}/student?sessionId=${data.sessionId}`;
 
-  if (typeof QRCode !== "undefined" && qrCodeContainer) {
-    new QRCode(qrCodeContainer, {
-      text: studentAccessUrl,
-      width: 220,
-      height: 220
-    });
-  }
-  if (qrInfoText) {
-    qrInfoText.textContent = `${deptSelect.value} - ${secSelect.value} | Scan to Mark Attendance 📍`;
-  }
-  if (qrModal) qrModal.classList.remove("hidden");
-}
+            if (typeof QRCode !== "undefined" && qrCodeContainer) {
+              new QRCode(qrCodeContainer, {
+                text: studentAccessUrl,
+                width: 220,
+                height: 220
+              });
+            }
+            if (qrInfoText) {
+              qrInfoText.textContent = `${deptSelect.value} - ${secSelect.value} | Scan to Mark Attendance 📍`;
+            }
+            if (qrModal) qrModal.classList.remove("hidden");
+          }
         } catch (err) {
           alert("Failed to connect to backend server.");
         }

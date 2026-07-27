@@ -1,94 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student QR Attendance</title>
   <style>
-    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #0f172a; color: white; margin: 0; }
-    .card { background: #1e293b; padding: 2rem; border-radius: 12px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    input { width: 100%; padding: 0.75rem; margin: 1rem 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; font-size: 1rem; box-sizing: border-box; text-transform: uppercase; }
-    button { width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background 0.2s; }
-    button:hover { background: #2563eb; }
-    #statusMsg { margin-top: 1rem; font-size: 0.9rem; word-break: break-word; line-height: 1.4; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .card { background: #1e293b; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; border: 1px solid #334155; }
+    h2 { font-size: 1.5rem; margin-bottom: 8px; color: #38bdf8; }
+    p { font-size: 0.9rem; color: #94a3b8; margin-bottom: 24px; }
+    .input-group { margin-bottom: 20px; text-align: left; }
+    label { display: block; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 6px; }
+    input[type="text"] { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #ffffff; font-size: 1rem; outline: none; transition: border 0.2s; }
+    input[type="text"]:focus { border-color: #38bdf8; }
+    input[readonly] { background: #1e293b; opacity: 0.8; cursor: not-allowed; border-color: #475569; }
+    .btn { width: 100%; padding: 14px; background: #2563eb; color: #ffffff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: #1d4ed8; }
+    .btn:disabled { background: #475569; cursor: not-allowed; }
+    .status-msg { margin-top: 18px; font-size: 0.9rem; border-radius: 8px; padding: 10px; display: none; }
+    .status-msg.success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid #22c55e; }
+    .status-msg.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; }
+    .device-info { font-size: 0.75rem; color: #64748b; margin-top: 15px; }
   </style>
 </head>
 <body>
+
   <div class="card">
-    <h2>📍 Mark Class Attendance</h2>
-    <p style="font-size: 0.85rem; color: #94a3b8;">Enter your Roll Number and grant GPS permission to verify classroom location.</p>
-    
-    <input type="text" id="studentRollNo" placeholder="e.g. 101" required />
-    <button id="submitBtn">Submit Attendance</button>
-    
-    <div id="statusMsg"></div>
+    <h2>📍 Class Attendance</h2>
+    <p>Enter your Roll Number to verify classroom location and submit attendance.</p>
+
+    <div class="input-group">
+      <label for="rollNo">Roll Number</label>
+      <input type="text" id="rollNo" placeholder="e.g., 21B91AP501" autocomplete="off" />
+    </div>
+
+    <button id="submitBtn" class="btn" onclick="submitAttendance()">Submit Attendance</button>
+
+    <div id="statusMsg" class="status-msg"></div>
+    <div id="deviceInfo" class="device-info"></div>
   </div>
 
   <script>
-    // Extract session ID from URL params (e.g. /student?sessionId=MCA_1stYear_SecA_Hour1_2026-07-27)
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('sessionId');
 
-    document.getElementById("submitBtn").addEventListener("click", () => {
-      const rollNo = document.getElementById("studentRollNo").value.trim();
-      const statusMsg = document.getElementById("statusMsg");
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedRollNo = localStorage.getItem('assigned_roll_no');
+      const rollInput = document.getElementById('rollNo');
+      const deviceInfo = document.getElementById('deviceInfo');
+
+      if (savedRollNo) {
+        rollInput.value = savedRollNo;
+        rollInput.readOnly = true;
+        deviceInfo.innerText = "🔒 Device linked to Roll No: " + savedRollNo;
+      }
+    });
+
+    function showStatus(message, isSuccess) {
+      const msgDiv = document.getElementById('statusMsg');
+      msgDiv.innerText = message;
+      msgDiv.className = `status-msg ${isSuccess ? 'success' : 'error'}`;
+      msgDiv.style.display = 'block';
+    }
+
+    async function submitAttendance() {
+      const rollInput = document.getElementById('rollNo');
+      const rollNo = rollInput.value.trim().toUpperCase();
+      const savedRollNo = localStorage.getItem('assigned_roll_no');
+      const btn = document.getElementById('submitBtn');
 
       if (!rollNo) {
-        alert("Please enter your Roll Number!");
+        showStatus("Please enter your Roll Number.", false);
+        return;
+      }
+
+      if (savedRollNo && savedRollNo !== rollNo) {
+        showStatus("This phone is locked to Roll No: " + savedRollNo, false);
         return;
       }
 
       if (!sessionId) {
-        statusMsg.style.color = "#ef4444";
-        statusMsg.textContent = "Invalid QR link! Please re-scan the QR code generated by faculty.";
+        showStatus("Invalid QR code link. Missing session parameters.", false);
         return;
       }
+
+      btn.disabled = true;
+      btn.innerText = "Verifying Location...";
 
       if (!navigator.geolocation) {
-        alert("Geolocation is not supported by your mobile browser.");
+        showStatus("Geolocation is not supported by your browser.", false);
+        btn.disabled = false;
+        btn.innerText = "Submit Attendance";
         return;
       }
 
-      statusMsg.style.color = "#3b82f6";
-      statusMsg.textContent = "Fetching GPS coordinates... Please wait.";
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const studentLat = position.coords.latitude;
+          const studentLng = position.coords.longitude;
 
-      const geoOptions = {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
-      };
+          try {
+            const response = await fetch('/api/qr/verify-student', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                rollNo,
+                studentLat,
+                studentLng,
+                sessionId
+              })
+            });
 
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        try {
-          const response = await fetch(`${window.location.origin}/api/qr/verify-student`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              rollNo: rollNo,
-              studentLat: position.coords.latitude,
-              studentLng: position.coords.longitude,
-              sessionId: sessionId
-            })
-          });
+            const data = await response.json();
 
-          const data = await response.json();
-          if (data.success) {
-            statusMsg.style.color = "#10b981";
-            statusMsg.textContent = data.message;
-            document.getElementById("studentRollNo").value = "";
-          } else {
-            statusMsg.style.color = "#ef4444";
-            statusMsg.textContent = data.message;
+            if (data.success) {
+              // Lock roll number to this device permanently on first successful scan
+              localStorage.setItem('assigned_roll_no', rollNo);
+              rollInput.readOnly = true;
+              document.getElementById('deviceInfo').innerText = "🔒 Device linked to Roll No: " + rollNo;
+              showStatus(data.message, true);
+            } else {
+              showStatus(data.message, false);
+            }
+          } catch (err) {
+            showStatus("Network error submitting attendance. Try again.", false);
+          } finally {
+            btn.disabled = false;
+            btn.innerText = "Submit Attendance";
           }
-        } catch (err) {
-          statusMsg.style.color = "#ef4444";
-          statusMsg.textContent = "Failed to connect to backend server.";
-        }
-      }, (err) => {
-        statusMsg.style.color = "#ef4444";
-        statusMsg.textContent = "Location access denied or timed out! Please turn on GPS and allow location permission.";
-      }, geoOptions);
-    });
+        },
+        (error) => {
+          showStatus("GPS permission denied or unavailable. Please enable Precise Location.", false);
+          btn.disabled = false;
+          btn.innerText = "Submit Attendance";
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
   </script>
 </body>
 </html>

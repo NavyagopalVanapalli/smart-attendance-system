@@ -12,7 +12,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
-app.use(express.static(__dirname)); // Serve static files
+app.use(express.static(__dirname));
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH = process.env.TWILIO_AUTH_TOKEN;
@@ -48,7 +48,7 @@ async function sendWhatsAppMessage(phoneNumber, message) {
   }
 }
 
-// MYSQL CONNECTION USING ENVIRONMENT VARIABLES
+// MYSQL CONNECTION
 const db = mysql.createConnection({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,
@@ -68,7 +68,7 @@ db.connect((err) => {
 
 // HAVERSINE FORMULA (GPS Distance Calculation)
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; // Earth radius in meters
+  const R = 6371e3;
   const rad = Math.PI / 180;
   const dLat = (lat2 - lat1) * rad;
   const dLon = (lon2 - lon1) * rad;
@@ -78,7 +78,7 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
             Math.sin(dLon / 2) * Math.sin(dLon / 2);
             
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Returns distance in meters
+  return R * c;
 }
 
 // TEACHER LOGIN API
@@ -126,6 +126,17 @@ app.get('/api/students', (req, res) => {
   });
 });
 
+// GET REAL-TIME ATTENDANCE STATUS FOR A SPECIFIC HOUR & DATE
+app.get('/api/attendance/live', (req, res) => {
+  const { dept, hour, date } = req.query;
+  const sql = `SELECT roll_no, status FROM attendance WHERE dept_code = ? AND hour = ? AND date = ?`;
+  
+  db.query(sql, [dept, hour, date], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
 // ADD NEW STUDENT API
 app.post('/api/students/add', (req, res) => {
   const { roll_no, full_name, parent_phone, dept_code, year_level, section } = req.body;
@@ -155,14 +166,14 @@ app.post('/api/students/add', (req, res) => {
 
 // SAVE ATTENDANCE RECORD
 app.post('/api/attendance/submit', (req, res) => {
-  const { date, hour, teacherId, records } = req.body;
+  const { date, hour, teacherId, dept, records } = req.body;
 
   if (!records || records.length === 0) {
     return res.status(400).json({ success: false, message: "No attendance records provided." });
   }
 
-  const query = `INSERT INTO attendance (roll_no, hour, date, status, teacher_id) VALUES ? ON DUPLICATE KEY UPDATE status=VALUES(status)`;
-  const values = records.map(r => [r.roll_no, hour, date, r.status, teacherId]);
+  const query = `INSERT INTO attendance (roll_no, hour, date, status, teacher_id, dept_code) VALUES ? ON DUPLICATE KEY UPDATE status=VALUES(status)`;
+  const values = records.map(r => [r.roll_no, hour, date, r.status, teacherId, dept || 'MCA']);
 
   db.query(query, [values], (err, result) => {
     if (err) {
@@ -173,7 +184,7 @@ app.post('/api/attendance/submit', (req, res) => {
   });
 });
 
-// SEND WHATSAPP MESSAGE
+// SEND DEDICATED WHATSAPP MESSAGE TO PARENT
 app.post('/api/send-whatsapp', async (req, res) => {
   const { parentPhone, message } = req.body;
 
@@ -204,7 +215,7 @@ app.post('/api/qr/generate-location', (req, res) => {
     teacherId: teacherId || 'FAC101',
     lat: parseFloat(teacherLat),
     lng: parseFloat(teacherLng),
-    expiresAt: Date.now() + (10 * 60 * 1000) // 10 minutes session
+    expiresAt: Date.now() + (10 * 60 * 1000)
   };
 
   res.json({ 
@@ -214,7 +225,7 @@ app.post('/api/qr/generate-location', (req, res) => {
   });
 });
 
-// ROBUST ROUTE TO SERVE STUDENT SCANNER PAGE (Case-insensitive check)
+// ROBUST ROUTE TO SERVE STUDENT SCANNER PAGE
 const serveStudentPage = (req, res) => {
   const possiblePaths = [
     path.join(__dirname, 'student.html'),
@@ -256,7 +267,7 @@ app.post('/api/qr/verify-student', (req, res) => {
     parseFloat(studentLng)
   );
 
-  const MAX_RADIUS_METERS = 200; 
+  const MAX_RADIUS_METERS = 200; // Increased to 200m for easy testing
 
   if (distance > MAX_RADIUS_METERS) {
     return res.status(403).json({ 
