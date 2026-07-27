@@ -1,0 +1,651 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+  const dateInput = document.getElementById("attendanceDate");
+  if (dateInput) dateInput.valueAsDate = new Date();
+
+  let attendanceStateMemory = JSON.parse(localStorage.getItem("attendanceStateMemory")) || {};
+
+  const loginSection = document.getElementById("loginSection");
+  const dashboardSection = document.getElementById("dashboardSection");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const changePasswordBtn = document.getElementById("changePasswordBtn");
+
+  const deptSelect = document.getElementById("departmentSelect");
+  const yearSelect = document.getElementById("yearSelect");
+  const secSelect = document.getElementById("sectionSelect");
+  const hourSelect = document.getElementById("hourSelect");
+
+  function saveFilterState() {
+    const filters = {
+      dept: deptSelect ? deptSelect.value : "",
+      year: yearSelect ? yearSelect.value : "",
+      sec: secSelect ? secSelect.value : "",
+      hour: hourSelect ? hourSelect.value : "",
+      date: dateInput ? dateInput.value : ""
+    };
+    localStorage.setItem("college_attendance_filters", JSON.stringify(filters));
+  }
+
+  function restoreFilterState() {
+    const savedFilters = localStorage.getItem("college_attendance_filters");
+    if (!savedFilters) return;
+
+    try {
+      const filters = JSON.parse(savedFilters);
+      if (deptSelect && filters.dept) deptSelect.value = filters.dept;
+      if (yearSelect && filters.year) yearSelect.value = filters.year;
+      if (secSelect && filters.sec) secSelect.value = filters.sec;
+      if (hourSelect && filters.hour) hourSelect.value = filters.hour;
+      if (dateInput && filters.date) dateInput.value = filters.date;
+    } catch (e) {
+      console.error("Error restoring filters:", e);
+    }
+  }
+
+  function showDashboard(teacher) {
+    if (loginSection) loginSection.classList.add("hidden");
+    if (dashboardSection) dashboardSection.classList.remove("hidden");
+    if (logoutBtn) logoutBtn.classList.remove("hidden");
+    if (changePasswordBtn) changePasswordBtn.classList.remove("hidden");
+    
+    restoreFilterState();
+    renderStudentTable();
+  }
+
+  function getScopedKey(rollNo) {
+    const d = dateInput ? dateInput.value : "today";
+    const dept = deptSelect ? deptSelect.value : "";
+    const yr = yearSelect ? yearSelect.value : "";
+    const sec = secSelect ? secSelect.value : "";
+    const hr = hourSelect ? hourSelect.value.split(" ")[0] : "";
+    return `${d}_${dept}_${yr}_${sec}_${hr}_${rollNo}`;
+  }
+
+  function saveCurrentStateToMemory() {
+    document.querySelectorAll("#studentTableBody tr").forEach(row => {
+      const roll = row.getAttribute("data-student-id");
+      const toggle = row.querySelector(".attendance-toggle");
+      const smsPill = row.querySelector(".status-pill");
+
+      if (roll && toggle) {
+        const key = getScopedKey(roll);
+        attendanceStateMemory[key] = {
+          checked: toggle.checked,
+          smsStatus: smsPill ? smsPill.textContent : "Not Sent"
+        };
+      }
+    });
+    localStorage.setItem("attendanceStateMemory", JSON.stringify(attendanceStateMemory));
+  }
+
+  [deptSelect, yearSelect, secSelect, hourSelect, dateInput].forEach(input => {
+    if (input) {
+      input.addEventListener("change", () => {
+        saveFilterState();
+        renderStudentTable();
+      });
+    }
+  });
+
+  async function renderStudentTable() {
+    const dept = deptSelect ? deptSelect.value : "";
+    const year = yearSelect ? yearSelect.value : "";
+    const sec = secSelect ? secSelect.value : "";
+    const rawHour = hourSelect ? hourSelect.value : "";
+    const activeHour = rawHour ? rawHour.split(" ")[0] + " " + rawHour.split(" ")[1] : "";
+
+    const badge = document.getElementById("activeSectionBadge");
+    if (badge) badge.textContent = `${dept} - ${year} (${sec}) | ${activeHour}`;
+
+    const tableBody = document.getElementById("studentTableBody");
+    if (!tableBody) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/students?dept=${dept}&year=${year}&section=${sec}`);
+      const students = await response.json();
+
+      tableBody.innerHTML = "";
+
+      if (!students || students.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No students enrolled in this section. Click 'Add Student' to add one.</td></tr>`;
+        updateSummary();
+        return;
+      }
+
+      students.forEach(student => {
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-student-id", student.roll_no);
+
+        const key = getScopedKey(student.roll_no);
+        const savedState = attendanceStateMemory[key];
+
+        const isChecked = savedState ? savedState.checked : true;
+        const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
+
+        const statusText = isChecked ? "Present" : "Absent";
+        const statusClass = isChecked ? "text-present" : "text-absent";
+        const pillClass = smsStatus.startsWith("SMS Sent") || smsStatus === "WhatsApp Opened" ? "pill-sent"
+          : smsStatus === "Send Failed" ? "pill-failed"
+          : "pill-neutral";
+
+        tr.innerHTML = `
+          <td class="roll-no">${student.roll_no}</td>
+          <td class="student-name">${student.full_name}</td>
+          <td class="parent-phone">${student.parent_phone}</td>
+          <td>
+            <label class="switch">
+              <input type="checkbox" class="attendance-toggle" ${isChecked ? 'checked' : ''} data-student-name="${student.full_name}" data-parent-phone="${student.parent_phone}">
+              <span class="slider round"></span>
+            </label>
+            <span class="status-text ${statusClass}">${statusText}</span>
+          </td>
+          <td><span class="status-pill ${pillClass}">${smsStatus}</span></td>
+          <td style="text-align: center;">
+            <button class="delete-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" title="Delete Student" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem;">
+              🗑️
+            </button>
+          </td>
+        `;
+        tableBody.appendChild(tr);
+      });
+
+      attachToggleListeners();
+      attachDeleteListeners();
+      updateSummary();
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  }
+
+  function attachDeleteListeners() {
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const roll_no = e.currentTarget.getAttribute("data-roll");
+        const studentName = e.currentTarget.getAttribute("data-name");
+        const dept_code = deptSelect.value;
+
+        if (confirm(`Are you sure you want to delete student "${studentName}" (${roll_no})?`)) {
+          try {
+            const response = await fetch(`${API_BASE_URL}/students/delete?roll_no=${encodeURIComponent(roll_no)}&dept_code=${encodeURIComponent(dept_code)}`, {
+              method: "DELETE"
+            });
+            const data = await response.json();
+
+            if (data.success) {
+              alert(`✅ Student "${studentName}" removed!`);
+              renderStudentTable();
+            } else {
+              alert("Error deleting student: " + data.message);
+            }
+          } catch (err) {
+            alert("Failed to connect to backend server.");
+          }
+        }
+      });
+    });
+  }
+
+  const confirmationModal = document.getElementById("confirmationModal");
+  const confirmSendSmsBtn = document.getElementById("confirmSendSmsBtn");
+  const confirmNoSmsBtn = document.getElementById("confirmNoSmsBtn");
+  const cancelModalBtn = document.getElementById("cancelModalBtn");
+  let activeToggle = null;
+
+  function attachToggleListeners() {
+    document.querySelectorAll(".attendance-toggle").forEach(toggle => {
+      toggle.addEventListener("change", (e) => {
+        if (!e.target.checked) {
+          e.target.checked = true;
+          activeToggle = e.target;
+
+          const studentName = e.target.getAttribute("data-student-name");
+          const parentPhone = e.target.getAttribute("data-parent-phone");
+
+          if (document.getElementById("modalStudentName")) document.getElementById("modalStudentName").textContent = studentName;
+          if (document.getElementById("modalParentPhone")) document.getElementById("modalParentPhone").textContent = parentPhone;
+          if (document.getElementById("smsPreviewText")) {
+            document.getElementById("smsPreviewText").textContent = 
+              `"Dear Parent, your child ${studentName} was marked ABSENT today (${dateInput.value}) during ${hourSelect.value} for ${deptSelect.value} ${secSelect.value}."`;
+          }
+
+          if (confirmationModal) confirmationModal.classList.remove("hidden");
+        } else {
+          updateRowStatus(e.target, true, "Not Sent");
+        }
+      });
+    });
+  }
+
+  if (confirmSendSmsBtn) {
+    confirmSendSmsBtn.addEventListener("click", () => {
+      if (activeToggle) {
+        const toggle = activeToggle;
+        const rawPhone = toggle.getAttribute("data-parent-phone");
+        const studentName = toggle.getAttribute("data-student-name");
+
+        let cleanPhone = rawPhone.replace(/\D/g, "");
+        if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+        const messageText = `Dear Parent, your child ${studentName} was marked ABSENT today (${dateInput.value}) during ${hourSelect.value} for ${deptSelect.value} ${secSelect.value}.`;
+        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
+
+        toggle.checked = false;
+        updateRowStatus(toggle, false, "WhatsApp Opened");
+        window.open(whatsappUrl, "_blank");
+      }
+      closeModal();
+    });
+  }
+
+  if (confirmNoSmsBtn) {
+    confirmNoSmsBtn.addEventListener("click", () => {
+      if (activeToggle) {
+        activeToggle.checked = false;
+        updateRowStatus(activeToggle, false, "No SMS");
+      }
+      closeModal();
+    });
+  }
+
+  if (cancelModalBtn) {
+    cancelModalBtn.addEventListener("click", () => {
+      if (activeToggle) activeToggle.checked = true;
+      closeModal();
+    });
+  }
+
+  function closeModal() {
+    if (confirmationModal) confirmationModal.classList.add("hidden");
+    activeToggle = null;
+    saveCurrentStateToMemory();
+    updateSummary();
+  }
+
+  function updateRowStatus(toggle, isPresent, smsStatus) {
+    const row = toggle.closest("tr");
+    const statusText = row.querySelector(".status-text");
+    const smsPill = row.querySelector(".status-pill");
+
+    if (isPresent) {
+      statusText.textContent = "Present";
+      statusText.className = "status-text text-present";
+      smsPill.textContent = "Not Sent";
+      smsPill.className = "status-pill pill-neutral";
+    } else {
+      statusText.textContent = "Absent";
+      statusText.className = "status-text text-absent";
+      smsPill.textContent = smsStatus;
+      smsPill.className = smsStatus.startsWith("SMS Sent") || smsStatus === "WhatsApp Opened" ? "status-pill pill-sent"
+        : smsStatus === "Send Failed" ? "status-pill pill-failed"
+        : "status-pill pill-neutral";
+    }
+    saveCurrentStateToMemory();
+  }
+
+  function updateSummary() {
+    const rows = document.querySelectorAll("#studentTableBody tr");
+    let presentCount = 0;
+    let absentCount = 0;
+
+    const presentList = document.getElementById("presentStudentsList");
+    const absentList = document.getElementById("absentStudentsList");
+
+    if (presentList) presentList.innerHTML = "";
+    if (absentList) absentList.innerHTML = "";
+
+    rows.forEach(row => {
+      const nameEl = row.querySelector(".student-name");
+      if (!nameEl) return;
+
+      const name = nameEl.textContent;
+      const roll = row.querySelector(".roll-no").textContent;
+      const toggle = row.querySelector(".attendance-toggle");
+
+      if (toggle && toggle.checked) {
+        presentCount++;
+        if (presentList) {
+          const li = document.createElement("li");
+          li.textContent = `${roll} - ${name}`;
+          presentList.appendChild(li);
+        }
+      } else {
+        absentCount++;
+        if (absentList) {
+          const li = document.createElement("li");
+          li.textContent = `${roll} - ${name}`;
+          absentList.appendChild(li);
+        }
+      }
+    });
+
+    const presentEl = document.getElementById("presentCount");
+    const absentEl = document.getElementById("absentCount");
+    const totalEl = document.getElementById("totalCount");
+
+    if (presentEl) presentEl.textContent = presentCount;
+    if (absentEl) absentEl.textContent = absentCount;
+    if (totalEl) totalEl.textContent = presentCount + absentCount;
+
+    if (absentList && absentCount === 0) {
+      absentList.innerHTML = '<li class="empty-msg">No students marked absent yet.</li>';
+    }
+  }
+
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+  document.body.classList.remove("dark-theme");
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-theme");
+      const isDark = document.body.classList.contains("dark-theme");
+      const btnText = themeToggleBtn.querySelector("span");
+      const btnIcon = themeToggleBtn.querySelector("i");
+      
+      if (btnText) btnText.textContent = isDark ? "Light Mode" : "Dark Mode";
+      if (btnIcon) btnIcon.className = isDark ? "fa-solid fa-sun" : "fa-solid fa-moon";
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+    });
+  }
+
+  const loginBtn = document.getElementById("loginBtn");
+  if (loginBtn) {
+    loginBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const teacherIdInput = document.getElementById("teacherId");
+      const passwordInput = document.getElementById("password");
+
+      const teacherId = teacherIdInput ? teacherIdInput.value.trim() : "";
+      const password = passwordInput ? passwordInput.value.trim() : "";
+
+      if (!teacherId || !password) {
+        alert("Please enter Faculty ID and Password.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teacherId, password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          localStorage.setItem("activeTeacher", JSON.stringify(data.teacher));
+          if (passwordInput) passwordInput.value = "";
+          showDashboard(data.teacher);
+        } else {
+          if (passwordInput) passwordInput.value = "";
+          alert(data.message || "Invalid credentials");
+        }
+      } catch (err) {
+        alert("Backend Server Error. Ensure node server.js is running!");
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("activeTeacher");
+      localStorage.removeItem("college_attendance_filters");
+      localStorage.removeItem("attendanceStateMemory");
+      if (dashboardSection) dashboardSection.classList.add("hidden");
+      if (logoutBtn) logoutBtn.classList.add("hidden");
+      if (changePasswordBtn) changePasswordBtn.classList.add("hidden");
+      if (loginSection) loginSection.classList.remove("hidden");
+      const pwd = document.getElementById("password");
+      if (pwd) pwd.value = "";
+    });
+  }
+
+  const addStudentModal = document.getElementById("addStudentModal");
+  const openAddStudentModalBtn = document.getElementById("openAddStudentModalBtn");
+  const closeAddStudentModalBtn = document.getElementById("closeAddStudentModalBtn");
+  const saveNewStudentBtn = document.getElementById("saveNewStudentBtn");
+
+  if (openAddStudentModalBtn) openAddStudentModalBtn.addEventListener("click", () => addStudentModal.classList.remove("hidden"));
+  if (closeAddStudentModalBtn) closeAddStudentModalBtn.addEventListener("click", () => addStudentModal.classList.add("hidden"));
+
+  if (saveNewStudentBtn) {
+    saveNewStudentBtn.addEventListener("click", async () => {
+      const roll_no = document.getElementById("newRollNo").value.trim();
+      const full_name = document.getElementById("newStudentName").value.trim();
+      const parent_phone = document.getElementById("newParentPhone").value.trim();
+
+      if (!roll_no || !full_name || !parent_phone) {
+        alert("Please fill in all student details!");
+        return;
+      }
+
+      if (!/^\d{10}$/.test(parent_phone)) {
+        alert("Please enter a valid 10-digit mobile number!");
+        return;
+      }
+
+      saveCurrentStateToMemory();
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/students/add`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roll_no,
+            full_name,
+            parent_phone,
+            dept_code: deptSelect.value,
+            year_level: yearSelect.value,
+            section: secSelect.value
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert(`✅ Student "${full_name}" added successfully!`);
+          document.getElementById("newRollNo").value = "";
+          document.getElementById("newStudentName").value = "";
+          document.getElementById("newParentPhone").value = "";
+          addStudentModal.classList.add("hidden");
+          renderStudentTable();
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server.");
+      }
+    });
+  }
+
+  const submitAttendanceBtn = document.getElementById("submitAttendanceBtn");
+  if (submitAttendanceBtn) {
+    submitAttendanceBtn.addEventListener("click", async () => {
+      const rows = document.querySelectorAll("#studentTableBody tr");
+      const records = [];
+
+      rows.forEach(row => {
+        const roll_no = row.getAttribute("data-student-id");
+        const toggle = row.querySelector(".attendance-toggle");
+        const smsPill = row.querySelector(".status-pill");
+
+        if (roll_no && toggle) {
+          records.push({
+            roll_no: roll_no,
+            status: toggle.checked ? "Present" : "Absent",
+            sms_status: smsPill ? smsPill.textContent : "Not Sent"
+          });
+        }
+      });
+
+      if (records.length === 0) {
+        alert("No student records to save!");
+        return;
+      }
+
+      const teacher = JSON.parse(localStorage.getItem("activeTeacher")) || { teacher_id: "FAC101" };
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/attendance/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: dateInput.value,
+            hour: hourSelect.value,
+            teacherId: teacher.teacher_id,
+            records: records
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(`✅ Attendance saved permanently!`);
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Server error when saving attendance.");
+      }
+    });
+  }
+
+  const changePasswordModal = document.getElementById("changePasswordModal");
+  const openChangePasswordBtn = document.getElementById("changePasswordBtn");
+  const closePasswordModalBtn = document.getElementById("closePasswordModalBtn");
+  const savePasswordBtn = document.getElementById("savePasswordBtn");
+
+  if (openChangePasswordBtn) {
+    openChangePasswordBtn.addEventListener("click", () => {
+      if (changePasswordModal) changePasswordModal.classList.remove("hidden");
+    });
+  }
+
+  if (closePasswordModalBtn) {
+    closePasswordModalBtn.addEventListener("click", () => {
+      if (changePasswordModal) changePasswordModal.classList.add("hidden");
+    });
+  }
+
+  if (savePasswordBtn) {
+    savePasswordBtn.addEventListener("click", async () => {
+      const currentPassword = document.getElementById("currentPassword").value.trim();
+      const newPassword = document.getElementById("newPassword").value.trim();
+      const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher"));
+
+      if (!currentPassword || !newPassword) {
+        alert("Please enter both current and new passwords.");
+        return;
+      }
+
+      if (!activeTeacher || !activeTeacher.teacher_id) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/change-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            teacherId: activeTeacher.teacher_id,
+            currentPassword,
+            newPassword
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert("✅ Password updated successfully!");
+          document.getElementById("currentPassword").value = "";
+          document.getElementById("newPassword").value = "";
+          if (changePasswordModal) changePasswordModal.classList.add("hidden");
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server.");
+      }
+    });
+  }
+
+  // Location-Bound QR Code Generator
+  const generateQrBtn = document.getElementById("generateQrBtn");
+  const qrModal = document.getElementById("qrModal");
+  const closeQrModalBtn = document.getElementById("closeQrModalBtn");
+  const qrCodeContainer = document.getElementById("qrCodeContainer");
+  const qrInfoText = document.getElementById("qrInfoText");
+
+  if (generateQrBtn) {
+    generateQrBtn.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+
+      const geoOptions = {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000
+      };
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const teacherLat = position.coords.latitude;
+        const teacherLng = position.coords.longitude;
+        const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher")) || { teacher_id: "FAC101" };
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/qr/generate-location`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dept: deptSelect.value,
+              year: yearSelect.value,
+              section: secSelect.value,
+              hour: hourSelect.value,
+              date: dateInput.value,
+              teacherLat,
+              teacherLng,
+              teacherId: activeTeacher.teacher_id
+            })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            if (qrCodeContainer) qrCodeContainer.innerHTML = "";
+            
+            // Dynamically construct URL using host IP/Domain
+            const studentAccessUrl = `${window.location.protocol}//${window.location.hostname}:5000/student?sessionId=${encodeURIComponent(data.sessionId)}`;
+
+            if (typeof QRCode !== "undefined" && qrCodeContainer) {
+              new QRCode(qrCodeContainer, {
+                text: studentAccessUrl,
+                width: 220,
+                height: 220
+              });
+            }
+            if (qrInfoText) {
+              qrInfoText.textContent = `${deptSelect.value} - ${secSelect.value} | Scan to Mark Attendance 📍`;
+            }
+            if (qrModal) qrModal.classList.remove("hidden");
+          }
+        } catch (err) {
+          alert("Failed to connect to backend server.");
+        }
+      }, (err) => {
+        alert("Please allow GPS location permission to generate classroom QR code.");
+      }, geoOptions);
+    });
+  }
+
+  if (closeQrModalBtn) {
+    closeQrModalBtn.addEventListener("click", () => {
+      if (qrModal) qrModal.classList.add("hidden");
+    });
+  }
+
+  const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher"));
+  if (activeTeacher) {
+    showDashboard(activeTeacher);
+  }
+});

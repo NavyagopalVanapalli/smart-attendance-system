@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart College Attendance Management</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header class="navbar">
+    <div class="logo">
+      <i class="fa-solid fa-graduation-cap"></i>
+      <span>SmartAttend</span>
+    </div>
+    <div class="nav-actions">
+      <button id="changePasswordBtn" class="btn btn-secondary hidden">
+        <i class="fa-solid fa-key"></i> Change Password
+      </button>
+      <button id="themeToggleBtn" class="btn btn-secondary">
+        <i class="fa-solid fa-sun"></i> <span>Light Mode</span>
+      </button>
+      <button id="logoutBtn" class="btn btn-danger hidden">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- LOGIN SECTION -->
+<!-- ENHANCED LMS-STYLE LOGIN SECTION -->
+<section id="loginSection" class="lms-login-wrapper">
+  <div class="lms-login-card">
+    
+    <!-- LEFT PANEL: BRANDING & LOGO -->
+    <div class="lms-left-panel">
+      <div class="lms-logo-box">
+        <img src="Srivishnu_Logo.jpg" alt="Vishnulogo" class="lms-logo">
+      </div>
+      <p class="lms-subtitle">Sri Vishnu Smart Attendance</p>
+      <p class="lms-description">
+        SmartAttend helps faculty manage hourly class attendance seamlessly, track automated WhatsApp alerts for absentees, and view instant summary analytics.
+      </p>
+    </div>
+
+    <!-- CENTER DIVIDER ICON -->
+    <div class="lms-book-divider">
+      <i class="fa-solid fa-book-open"></i>
+    </div>
+
+    <!-- RIGHT PANEL: LOGIN FORM -->
+    <div class="lms-right-panel">
+      <h2>LOGIN</h2>
+      <div class="lms-input-box">
+        <input type="text" id="teacherId" placeholder="Your Email / Faculty ID *" value="FAC101" required>
+      </div>
+      <div class="lms-input-box">
+        <input type="password" id="password" placeholder="Your Password *" required>
+      </div>
+      <button id="loginBtn" class="btn lms-btn-submit">LOGIN</button>
+      <a href="#" class="lms-forgot-link" onclick="alert('Please contact your administrator to reset your password.'); return false;">Forgot Password?</a>
+    </div>
+
+  </div>
+
+  <!-- FOOTER COPYRIGHT -->
+  <footer class="lms-footer">
+    Copyrights &copy; 2026, SmartAttend System. All rights reserved.
+  </footer>
+</section>
+
+  <!-- DASHBOARD SECTION -->
+  <main id="dashboardSection" class="dashboard-container hidden">
+    
+    <!-- CONTROLS & FILTER BAR -->
+    <section class="filter-card">
+      <div class="filter-group">
+        <div class="filter-item">
+          <label>Department</label>
+          <select id="departmentSelect">
+            <option value="MCA">MCA</option>
+            <option value="MBA">MBA</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>Year</label>
+          <select id="yearSelect">
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>Section</label>
+          <select id="sectionSelect">
+            <option value="Sec A">Sec A</option>
+            <option value="Sec B">Sec B</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>Class Hour</label>
+          <select id="hourSelect">
+            <option value="Hour 1 (09:00 AM - 10:00 AM)">Hour 1 (09:00 AM)</option>
+            <option value="Hour 2 (10:00 AM - 11:00 AM)">Hour 2 (10:00 AM)</option>
+            <option value="Hour 3 (11:15 AM - 12:15 PM)">Hour 3 (11:15 AM)</option>
+            <option value="Hour 4 (01:15 PM - 02:15 PM)">Hour 4 (01:15 PM)</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>Date</label>
+          <input type="date" id="attendanceDate">
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button id="openAddStudentModalBtn" class="btn btn-secondary">
+          <i class="fa-solid fa-user-plus"></i> Add Student
+        </button>
+        <button id="generateQrBtn" class="btn btn-secondary">
+          <i class="fa-solid fa-qrcode"></i> Generate Class QR
+        </button>
+        <button id="submitAttendanceBtn" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk"></i> Save Attendance
+        </button>
+      </div>
+    </section>
+
+    <!-- ATTENDANCE TABLE SECTION -->
+    <section class="table-card">
+      <div class="table-header">
+        <h3>Class Attendance Register</h3>
+        <span id="activeSectionBadge" class="badge">CSE - 3rd Year (Sec A)</span>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Roll No</th>
+              <th>Student Name</th>
+              <th>Parent Phone</th>
+              <th>Attendance Toggle</th>
+              <th>SMS Alert Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody">
+            <!-- Dynamic student rows inserted by JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SUMMARY DASHBOARD -->
+    <section class="summary-card">
+      <div class="summary-stats">
+        <div class="stat-box">
+          <h4>Total Students</h4>
+          <span id="totalCount">0</span>
+        </div>
+        <div class="stat-box present-box">
+          <h4>Present</h4>
+          <span id="presentCount">0</span>
+        </div>
+        <div class="stat-box absent-box">
+          <h4>Absent</h4>
+          <span id="absentCount">0</span>
+        </div>
+      </div>
+      <div class="summary-lists">
+        <div class="list-column">
+          <h5>Present List</h5>
+          <ul id="presentStudentsList"></ul>
+        </div>
+        <div class="list-column">
+          <h5>Absent List</h5>
+          <ul id="absentStudentsList"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- CONFIRMATION MODAL -->
+  <div id="confirmationModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Confirm Absence</h3>
+      <p>Student: <strong id="modalStudentName"></strong></p>
+      <p>Parent Phone: <strong id="modalParentPhone"></strong></p>
+      <div class="sms-preview">
+        <p><strong>SMS Preview:</strong></p>
+        <p id="smsPreviewText"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="confirmSendSmsBtn" class="btn btn-primary">Yes, Send SMS</button>
+        <button id="confirmNoSmsBtn" class="btn btn-secondary">No SMS</button>
+        <button id="cancelModalBtn" class="btn btn-danger">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD STUDENT MODAL -->
+  <div id="addStudentModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Add New Student</h3>
+      <div class="input-group">
+        <label>Roll Number</label>
+        <input type="text" id="newRollNo" placeholder="e.g. 104">
+      </div>
+      <div class="input-group">
+        <label>Student Name</label>
+        <input type="text" id="newStudentName" placeholder="Full Name">
+      </div>
+      <div class="input-group">
+        <label>Parent Phone (10 Digits)</label>
+        <input type="tel" id="newParentPhone" placeholder="10 Digit Number" maxlength="10">
+      </div>
+      <div class="modal-actions">
+        <button id="saveNewStudentBtn" class="btn btn-primary">Save Student</button>
+        <button id="closeAddStudentModalBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div id="changePasswordModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Change Faculty Password</h3>
+      <div class="input-group">
+        <label>Current Password</label>
+        <input type="password" id="currentPassword" placeholder="Enter current password">
+      </div>
+      <div class="input-group">
+        <label>New Password</label>
+        <input type="password" id="newPassword" placeholder="Enter new password">
+      </div>
+      <div class="modal-actions">
+        <button id="savePasswordBtn" class="btn btn-primary">Update Password</button>
+        <button id="closePasswordModalBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR CODE MODAL -->
+  <div id="qrModal" class="modal-overlay hidden">
+    <div class="modal-card" style="text-align: center;">
+      <h3>Classroom Attendance QR Code</h3>
+      <div id="qrCodeContainer" style="margin: 20px 0;"></div>
+      <p id="qrInfoText" style="font-weight: 600; font-size: 0.9rem; color: var(--primary);"></p>
+      <div class="modal-actions" style="justify-content: center; margin-top: 20px;">
+        <button id="closeQrModalBtn" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
