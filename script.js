@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-        // REQUIREMENT 2: DEFAULT ALL STUDENTS TO ABSENT
+        // DEFAULT ALL STUDENTS TO ABSENT IF NOT SCANNED OR TOGGLED
         const isChecked = savedState ? savedState.checked : false;
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
@@ -147,8 +147,8 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
           <td><span class="status-pill ${pillClass}">${smsStatus}</span></td>
           <td style="text-align: center; display: flex; gap: 8px; justify-content: center; align-items: center;">
-            <!-- REQUIREMENT 3: DEDICATED WHATSAPP BUTTON -->
-            <button class="whatsapp-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" data-phone="${student.parent_phone}" title="Send WhatsApp to Parent" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+            <!-- SHOW WHATSAPP BUTTON ONLY WHEN ABSENT -->
+            <button class="whatsapp-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" data-phone="${student.parent_phone}" title="Send WhatsApp to Parent" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; display: ${isChecked ? 'none' : 'inline-block'};">
               💬 WhatsApp
             </button>
             <button class="delete-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" title="Delete Student" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem;">
@@ -164,7 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
       attachDeleteListeners();
       updateSummary();
 
-      // REQUIREMENT 2: START LIVE POLLING FOR AUTOMATIC SCAN TOGGLE
+      // START LIVE POLLING FOR AUTOMATIC QR SCAN TOGGLE
       startLivePolling(dept, rawHour, date);
 
     } catch (err) {
@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // REAL-TIME POLLING FUNCTION: Auto-flips toggle to Present when student scans
+  // REAL-TIME POLLING: Auto-flips toggle to Present & hides WhatsApp button when student scans
   function startLivePolling(dept, hour, date) {
     if (!dept || !hour || !date) return;
 
@@ -187,16 +187,9 @@ document.addEventListener("DOMContentLoaded", () => {
               const row = document.querySelector(`#studentTableBody tr[data-student-id="${record.roll_no}"]`);
               if (row) {
                 const toggle = row.querySelector(".attendance-toggle");
-                const statusText = row.querySelector(".status-text");
-
                 if (toggle && !toggle.checked) {
-                  toggle.checked = true; // Auto-move toggle to Present!
-                  if (statusText) {
-                    statusText.textContent = "Present";
-                    statusText.className = "status-text text-present";
-                  }
-                  saveCurrentStateToMemory();
-                  updateSummary();
+                  toggle.checked = true; // Auto-move toggle to Present
+                  updateRowStatus(toggle, true, "Not Sent");
                 }
               }
             }
@@ -205,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (e) {
         console.error("Live polling error:", e);
       }
-    }, 3000); // Check database every 3 seconds
+    }, 3000); // Check backend every 3 seconds
   }
 
   function attachDeleteListeners() {
@@ -236,7 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // REQUIREMENT 3: DEDICATED WHATSAPP BUTTON EVENT LISTENER
+  // DEDICATED WHATSAPP BUTTON EVENT LISTENER
   function attachWhatsAppListeners() {
     document.querySelectorAll(".whatsapp-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
@@ -267,23 +260,27 @@ document.addEventListener("DOMContentLoaded", () => {
   function attachToggleListeners() {
     document.querySelectorAll(".attendance-toggle").forEach(toggle => {
       toggle.addEventListener("change", (e) => {
-        const row = e.target.closest("tr");
         const isChecked = e.target.checked;
         updateRowStatus(e.target, isChecked, isChecked ? "Not Sent" : "No SMS");
       });
     });
   }
 
+  // DYNAMIC ROW UPDATE (TOGGLES PRESENT/ABSENT & SHOWS/HIDES WHATSAPP BUTTON)
   function updateRowStatus(toggle, isPresent, smsStatus) {
     const row = toggle.closest("tr");
     const statusText = row.querySelector(".status-text");
     const smsPill = row.querySelector(".status-pill");
+    const whatsappBtn = row.querySelector(".whatsapp-btn");
 
     if (isPresent) {
       statusText.textContent = "Present";
       statusText.className = "status-text text-present";
       smsPill.textContent = "Not Sent";
       smsPill.className = "status-pill pill-neutral";
+
+      // Hide WhatsApp button when Present
+      if (whatsappBtn) whatsappBtn.style.display = "none";
     } else {
       statusText.textContent = "Absent";
       statusText.className = "status-text text-absent";
@@ -291,6 +288,9 @@ document.addEventListener("DOMContentLoaded", () => {
       smsPill.className = smsStatus.startsWith("SMS Sent") || smsStatus === "WhatsApp Opened" ? "status-pill pill-sent"
         : smsStatus === "Send Failed" ? "status-pill pill-failed"
         : "status-pill pill-neutral";
+
+      // Show WhatsApp button when Absent
+      if (whatsappBtn) whatsappBtn.style.display = "inline-block";
     }
     saveCurrentStateToMemory();
     updateSummary();
