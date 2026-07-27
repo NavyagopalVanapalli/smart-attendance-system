@@ -173,7 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // REAL-TIME POLLING: Auto-flips toggle to Present & hides WhatsApp button when student scans
-  function startLivePolling(dept, hour, date) {
+function startLivePolling(dept, hour, date) {
     if (!dept || !hour || !date) return;
 
     pollingInterval = setInterval(async () => {
@@ -188,8 +188,8 @@ document.addEventListener("DOMContentLoaded", () => {
               if (row) {
                 const toggle = row.querySelector(".attendance-toggle");
                 if (toggle && !toggle.checked) {
-                  toggle.checked = true; // Auto-move toggle to Present
-                  updateRowStatus(toggle, true, "Not Sent");
+                  toggle.checked = true; // Auto-move switch to Present
+                  updateRowStatus(toggle, true, "Scanned via QR");
                 }
               }
             }
@@ -198,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (e) {
         console.error("Live polling error:", e);
       }
-    }, 3000); // Check backend every 3 seconds
+    }, 3000); // Polls backend every 3 seconds
   }
 
   function attachDeleteListeners() {
