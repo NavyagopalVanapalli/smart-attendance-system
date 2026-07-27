@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-        // DEFAULT ALL STUDENTS TO ABSENT IF NOT SCANNED OR TOGGLED
+        // FORCE DEFAULT TO ABSENT UNLESS EXPLICITLY SAVED AS PRESENT IN CURRENT SESSION
         const isChecked = savedState ? savedState.checked : false;
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
