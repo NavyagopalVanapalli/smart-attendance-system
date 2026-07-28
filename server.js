@@ -96,7 +96,7 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// RESET / FORGOT PASSWORD ENDPOINT (DEMO)
+// RESET / FORGOT PASSWORD ENDPOINT
 app.post('/api/reset-password', (req, res) => {
   const { teacherId, newPassword } = req.body;
 
@@ -146,20 +146,20 @@ app.get('/api/students', (req, res) => {
   });
 });
 
-// GET REAL-TIME ATTENDANCE STATUS FOR A SPECIFIC HOUR & DATE
+// GET REAL-TIME ATTENDANCE STATUS FOR A SPECIFIC HOUR, DEPT & DATE
 app.get('/api/attendance/live', (req, res) => {
   const { dept, hour, date } = req.query;
 
   const query = `
     SELECT roll_no, status 
     FROM attendance 
-    WHERE (dept_code = ? OR dept_code LIKE CONCAT('%', ?, '%'))
-      AND (hour = ? OR hour LIKE CONCAT('%', ?, '%'))
+    WHERE dept_code = ? 
+      AND hour = ? 
       AND date = ? 
       AND status = 'Present'
   `;
 
-  db.query(query, [dept, dept, hour, hour, date], (err, results) => {
+  db.query(query, [dept, hour, date], (err, results) => {
     if (err) {
       console.error("Error fetching live attendance:", err);
       return res.status(500).json({ error: "Database query failed" });
@@ -195,7 +195,7 @@ app.post('/api/students/add', (req, res) => {
   });
 });
 
-// SAVE ATTENDANCE RECORD
+// SAVE ATTENDANCE RECORD (UPSERT WITH DEPT MATCHING)
 app.post('/api/attendance/submit', (req, res) => {
   const { date, hour, teacherId, dept, records } = req.body;
 
@@ -203,12 +203,17 @@ app.post('/api/attendance/submit', (req, res) => {
     return res.status(400).json({ success: false, message: "No attendance records provided." });
   }
 
-  const query = `INSERT INTO attendance (roll_no, hour, date, status, teacher_id, dept_code) VALUES ? ON DUPLICATE KEY UPDATE status=VALUES(status)`;
-  const values = records.map(r => [r.roll_no, hour, date, r.status, teacherId, dept || 'MCA']);
+  const query = `
+    INSERT INTO attendance (roll_no, hour, date, status, teacher_id, dept_code) 
+    VALUES ? 
+    ON DUPLICATE KEY UPDATE status=VALUES(status), teacher_id=VALUES(teacher_id)
+  `;
+  
+  const values = records.map(r => [r.roll_no, hour, date, r.status, teacherId, dept]);
 
   db.query(query, [values], (err, result) => {
     if (err) {
-      console.error(err);
+      console.error("Database save error:", err);
       return res.status(500).json({ success: false, message: err.message });
     }
     res.json({ success: true, message: "Attendance saved successfully!" });
@@ -277,13 +282,12 @@ app.post('/api/qr/verify-student', (req, res) => {
     parseFloat(studentLng)
   );
 
-  // INCREASED TO 500KM TO ALLOW LAPTOP / HOTSPOT WI-FI LOCATION TESTING
   const MAX_RADIUS_METERS = 500000; 
 
   if (distance > MAX_RADIUS_METERS) {
     return res.status(403).json({ 
       success: false, 
-      message: `Location verification failed! You are ${Math.round(distance)}m away from classroom (Max allowed: ${MAX_RADIUS_METERS}m).` 
+      message: `Location verification failed! You are ${Math.round(distance)}m away from classroom.` 
     });
   }
 
@@ -358,7 +362,7 @@ app.get('/student', serveStudentPage);
 app.get('/student.html', serveStudentPage);
 app.get('/Student.html', serveStudentPage);
 
-// ROUTE TO SERVE MAIN INDEX PAGE (PREVENTS 404 ON ROOT /)
+// ROUTE TO SERVE MAIN INDEX PAGE
 app.get('/', (req, res) => {
   const possibleIndexPaths = [
     path.join(__dirname, 'index.html'),
