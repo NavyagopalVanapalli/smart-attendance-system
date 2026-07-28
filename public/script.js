@@ -16,6 +16,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const secSelect = document.getElementById("sectionSelect");
   const hourSelect = document.getElementById("hourSelect");
 
+  function getActiveTeacher() {
+    return JSON.parse(localStorage.getItem("activeTeacher")) || null;
+  }
+
   function saveFilterState() {
     const filters = {
       dept: deptSelect ? deptSelect.value : "",
@@ -48,18 +52,41 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dashboardSection) dashboardSection.classList.remove("hidden");
     if (logoutBtn) logoutBtn.classList.remove("hidden");
     if (changePasswordBtn) changePasswordBtn.classList.remove("hidden");
+
+    // Display Faculty Name and ID on Dashboard
+    const facultyInfoDisplay = document.getElementById("facultyInfoDisplay");
+    const teacherName = teacher.teacher_name || teacher.full_name || "Faculty";
+    const teacherId = teacher.teacher_id || "N/A";
+
+    if (facultyInfoDisplay) {
+      facultyInfoDisplay.innerHTML = `<strong>Faculty:</strong> ${teacherName} (${teacherId})`;
+    } else {
+      // Fallback: append/update info in the header or active badge if container doesn't exist
+      let teacherBadge = document.getElementById("teacherProfileBadge");
+      if (!teacherBadge) {
+        teacherBadge = document.createElement("div");
+        teacherBadge.id = "teacherProfileBadge";
+        teacherBadge.style.cssText = "padding: 8px 16px; background: rgba(99, 102, 241, 0.15); border-radius: 8px; font-weight: 600; color: var(--text-color, #333); margin-bottom: 12px;";
+        const dashboardHeader = dashboardSection.querySelector(".dashboard-header") || dashboardSection;
+        dashboardHeader.prepend(teacherBadge);
+      }
+      teacherBadge.innerHTML = `👤 <strong>Faculty:</strong> ${teacherName} | <strong>ID:</strong> ${teacherId}`;
+    }
     
     restoreFilterState();
     renderStudentTable();
   }
 
+  // Scoped key isolated per Faculty ID
   function getScopedKey(rollNo) {
+    const teacher = getActiveTeacher();
+    const teacherId = teacher ? teacher.teacher_id : "guest";
     const d = dateInput ? dateInput.value : "today";
     const dept = deptSelect ? deptSelect.value : "";
     const yr = yearSelect ? yearSelect.value : "";
     const sec = secSelect ? secSelect.value : "";
     const hr = hourSelect ? hourSelect.value.split(" ")[0] : "";
-    return `${d}_${dept}_${yr}_${sec}_${hr}_${rollNo}`;
+    return `${teacherId}_${d}_${dept}_${yr}_${sec}_${hr}_${rollNo}`;
   }
 
   function saveCurrentStateToMemory() {
@@ -91,6 +118,9 @@ document.addEventListener("DOMContentLoaded", () => {
   async function renderStudentTable() {
     if (pollingInterval) clearInterval(pollingInterval);
 
+    const activeTeacher = getActiveTeacher();
+    const teacherId = activeTeacher ? activeTeacher.teacher_id : "";
+
     const dept = deptSelect ? deptSelect.value : "";
     const year = yearSelect ? yearSelect.value : "";
     const sec = secSelect ? secSelect.value : "";
@@ -105,13 +135,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!tableBody) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/students?dept=${dept}&year=${year}&section=${sec}`);
+      // Pass teacherId to fetch faculty-specific students
+      const response = await fetch(`${API_BASE_URL}/students?dept=${dept}&year=${year}&section=${sec}&teacherId=${teacherId}`);
       const students = await response.json();
 
       tableBody.innerHTML = "";
 
       if (!students || students.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No students enrolled in this section. Click 'Add Student' to add one.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted, #888);">No students found for this section. Click 'Add Student' to add one.</td></tr>`;
         updateSummary();
         return;
       }
@@ -162,21 +193,21 @@ document.addEventListener("DOMContentLoaded", () => {
       attachDeleteListeners();
       updateSummary();
 
-      startLivePolling(dept, rawHour, date);
+      startLivePolling(dept, rawHour, date, teacherId);
 
     } catch (err) {
       console.error("Fetch error:", err);
     }
   }
 
-  function startLivePolling(dept, hour, date) {
+  function startLivePolling(dept, hour, date, teacherId) {
     if (!dept || !hour || !date) return;
 
     if (pollingInterval) clearInterval(pollingInterval);
 
     pollingInterval = setInterval(async () => {
       try {
-        const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(hour)}&date=${encodeURIComponent(date)}`);
+        const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(hour)}&date=${encodeURIComponent(date)}&teacherId=${encodeURIComponent(teacherId)}`);
         if (!liveRes.ok) return;
         
         const liveData = await liveRes.json();
@@ -189,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const toggle = row.querySelector(".attendance-toggle");
                 if (toggle && !toggle.checked) {
                   toggle.checked = true;
-                  updateRowStatus(toggle, true, "Not Sent"); // Lock gets triggered here
+                  updateRowStatus(toggle, true, "Not Sent");
                 }
               }
             }
@@ -207,10 +238,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const roll_no = e.currentTarget.getAttribute("data-roll");
         const studentName = e.currentTarget.getAttribute("data-name");
         const dept_code = deptSelect.value;
+        const activeTeacher = getActiveTeacher();
 
         if (confirm(`Are you sure you want to delete student "${studentName}" (${roll_no})?`)) {
           try {
-            const response = await fetch(`${API_BASE_URL}/students/delete?roll_no=${encodeURIComponent(roll_no)}&dept_code=${encodeURIComponent(dept_code)}`, {
+            const response = await fetch(`${API_BASE_URL}/students/delete?roll_no=${encodeURIComponent(roll_no)}&dept_code=${encodeURIComponent(dept_code)}&teacherId=${encodeURIComponent(activeTeacher ? activeTeacher.teacher_id : '')}`, {
               method: "DELETE"
             });
             const data = await response.json();
@@ -403,7 +435,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (pollingInterval) clearInterval(pollingInterval);
       localStorage.removeItem("activeTeacher");
       localStorage.removeItem("college_attendance_filters");
-      localStorage.removeItem("attendanceStateMemory");
       if (dashboardSection) dashboardSection.classList.add("hidden");
       if (logoutBtn) logoutBtn.classList.add("hidden");
       if (changePasswordBtn) changePasswordBtn.classList.add("hidden");
@@ -426,6 +457,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const roll_no = document.getElementById("newRollNo").value.trim();
       const full_name = document.getElementById("newStudentName").value.trim();
       const parent_phone = document.getElementById("newParentPhone").value.trim();
+      const activeTeacher = getActiveTeacher();
 
       if (!roll_no || !full_name || !parent_phone) {
         alert("Please fill in all student details!");
@@ -449,7 +481,8 @@ document.addEventListener("DOMContentLoaded", () => {
             parent_phone,
             dept_code: deptSelect.value,
             year_level: yearSelect.value,
-            section: secSelect.value
+            section: secSelect.value,
+            teacher_id: activeTeacher ? activeTeacher.teacher_id : null
           })
         });
 
@@ -496,7 +529,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const teacher = JSON.parse(localStorage.getItem("activeTeacher")) || { teacher_id: "FAC101" };
+      const activeTeacher = getActiveTeacher() || { teacher_id: "FAC101" };
 
       try {
         const response = await fetch(`${API_BASE_URL}/attendance/submit`, {
@@ -505,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({
             date: dateInput.value,
             hour: hourSelect.value,
-            teacherId: teacher.teacher_id,
+            teacherId: activeTeacher.teacher_id,
             dept: deptSelect.value,
             records: records
           })
@@ -544,7 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
     savePasswordBtn.addEventListener("click", async () => {
       const currentPassword = document.getElementById("currentPassword").value.trim();
       const newPassword = document.getElementById("newPassword").value.trim();
-      const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher"));
+      const activeTeacher = getActiveTeacher();
 
       if (!currentPassword || !newPassword) {
         alert("Please enter both current and new passwords.");
@@ -605,7 +638,7 @@ document.addEventListener("DOMContentLoaded", () => {
       navigator.geolocation.getCurrentPosition(async (position) => {
         const teacherLat = position.coords.latitude;
         const teacherLng = position.coords.longitude;
-        const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher")) || { teacher_id: "FAC101" };
+        const activeTeacher = getActiveTeacher() || { teacher_id: "FAC101" };
 
         try {
           const response = await fetch(`${API_BASE_URL}/qr/generate-location`, {
@@ -708,7 +741,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher"));
+  const activeTeacher = getActiveTeacher();
   if (activeTeacher) {
     showDashboard(activeTeacher);
   }
