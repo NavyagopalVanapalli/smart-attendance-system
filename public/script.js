@@ -1,4 +1,30 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+
+  // 1. Check saved preference or system theme on load
+  const savedTheme = localStorage.getItem("appTheme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+    if (themeToggleBtn) themeToggleBtn.textContent = "☀️ Light Mode";
+  } else {
+    document.body.classList.remove("dark-mode");
+    if (themeToggleBtn) themeToggleBtn.textContent = "🌙 Dark Mode";
+  }
+
+  // 2. Toggle button event listener
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      const isDarkMode = document.body.classList.contains("dark-mode");
+
+      // Save preference across tabs/sessions
+      localStorage.setItem("appTheme", isDarkMode ? "dark" : "light");
+
+      // Update button text/icon
+      themeToggleBtn.textContent = isDarkMode ? "☀️ Light Mode" : "🌙 Dark Mode";
+    });
+  }
+
   const API_BASE_URL = `${window.location.origin}/api`;
   const dateInput = document.getElementById("attendanceDate");
   if (dateInput) dateInput.valueAsDate = new Date();
