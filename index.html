@@ -59,7 +59,27 @@
         <input type="password" id="password" placeholder="Your Password *" required>
       </div>
       <button id="loginBtn" class="btn lms-btn-submit">LOGIN</button>
-      <a href="#" class="lms-forgot-link" onclick="alert('Please contact your administrator to reset your password.'); return false;">Forgot Password?</a>
+      <!-- Inside Login Section -->
+<a href="#" id="forgotPasswordLink" style="color: #6366f1; font-size: 0.85rem; display: block; margin-top: 8px; text-align: right; text-decoration: none;">Forgot Password?</a>
+
+<!-- Forgot Password Modal -->
+<div id="forgotPasswordModal" class="modal hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+  <div class="modal-content" style="background: var(--card-bg, #ffffff); padding: 25px; border-radius: 12px; max-width: 400px; width: 90%;">
+    <h3 style="margin-top: 0;">🔑 Reset Password (Demo)</h3>
+    <p style="font-size: 0.85rem; color: #666;">Enter your Faculty ID and set a new password.</p>
+    
+    <label style="display:block; margin: 10px 0 5px; font-weight: 600;">Faculty ID</label>
+    <input type="text" id="resetTeacherId" placeholder="e.g. FAC101" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+
+    <label style="display:block; margin: 10px 0 5px; font-weight: 600;">New Password</label>
+    <input type="password" id="resetNewPassword" placeholder="Enter new password" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+
+    <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+      <button id="closeForgotModalBtn" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #ccc; background: transparent; cursor: pointer;">Cancel</button>
+      <button id="submitResetPasswordBtn" style="padding: 8px 16px; border-radius: 6px; border: none; background: #6366f1; color: white; cursor: pointer; font-weight: 600;">Reset Password</button>
+    </div>
+  </div>
+</div>
     </div>
 
   </div>

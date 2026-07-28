@@ -96,6 +96,27 @@ app.post('/api/login', (req, res) => {
   });
 });
 
+
+
+// Reset / Forgot Password Endpoint (Demo)
+app.post('/api/reset-password', (req, res) => {
+  const { teacherId, newPassword } = req.body;
+
+  if (!teacherId || !newPassword) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  const query = 'UPDATE teachers SET password_hash = ? WHERE teacher_id = ?';
+  db.query(query, [newPassword, teacherId], (err, results) => {
+    if (err) return res.status(500).json({ success: false, message: 'Database query failed.' });
+    
+    if (results.affectedRows > 0) {
+      res.json({ success: true, message: 'Password updated successfully!' });
+    } else {
+      res.json({ success: false, message: 'Faculty ID not found.' });
+    }
+  });
+});
 // CHANGE TEACHER PASSWORD API
 app.post('/api/change-password', (req, res) => {
   const { teacherId, currentPassword, newPassword } = req.body;
@@ -130,14 +151,17 @@ app.get('/api/students', (req, res) => {
 app.get('/api/attendance/live', (req, res) => {
   const { dept, hour, date } = req.query;
 
-  // Uses dept_code to match your MySQL attendance table schema
+  // Uses LIKE so 'MCA' matches 'MCA - Master of Computer Applications'
   const query = `
     SELECT roll_no, status 
     FROM attendance 
-    WHERE dept_code = ? AND hour = ? AND date = ? AND status = 'Present'
+    WHERE (dept_code = ? OR dept_code LIKE CONCAT('%', ?, '%'))
+      AND (hour = ? OR hour LIKE CONCAT('%', ?, '%'))
+      AND date = ? 
+      AND status = 'Present'
   `;
 
-  db.query(query, [dept, hour, date], (err, results) => {
+  db.query(query, [dept, dept, hour, hour, date], (err, results) => {
     if (err) {
       console.error("Error fetching live attendance:", err);
       return res.status(500).json({ error: "Database query failed" });

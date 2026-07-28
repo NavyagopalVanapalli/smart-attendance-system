@@ -173,7 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // REAL-TIME POLLING: Auto-flips toggle to Present & hides WhatsApp button when student scans
-function startLivePolling(dept, hour, date) {
+  function startLivePolling(dept, hour, date) {
     if (!dept || !hour || !date) return;
 
     pollingInterval = setInterval(async () => {
@@ -188,8 +188,8 @@ function startLivePolling(dept, hour, date) {
               if (row) {
                 const toggle = row.querySelector(".attendance-toggle");
                 if (toggle && !toggle.checked) {
-                  toggle.checked = true; // Auto-move switch to Present
-                  updateRowStatus(toggle, true, "Scanned via QR");
+                  toggle.checked = true; // Auto-move toggle to Present
+                  updateRowStatus(toggle, true, "Not Sent");
                 }
               }
             }
@@ -198,7 +198,7 @@ function startLivePolling(dept, hour, date) {
       } catch (e) {
         console.error("Live polling error:", e);
       }
-    }, 3000); // Polls backend every 3 seconds
+    }, 3000); // Check backend every 3 seconds
   }
 
   function attachDeleteListeners() {
@@ -670,3 +670,56 @@ function startLivePolling(dept, hour, date) {
     showDashboard(activeTeacher);
   }
 });
+
+
+// FORGOT PASSWORD MODAL LOGIC
+const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+const forgotPasswordModal = document.getElementById("forgotPasswordModal");
+const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
+const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
+
+if (forgotPasswordLink) {
+  forgotPasswordLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (forgotPasswordModal) forgotPasswordModal.classList.remove("hidden");
+  });
+}
+
+if (closeForgotModalBtn) {
+  closeForgotModalBtn.addEventListener("click", () => {
+    if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+  });
+}
+
+if (submitResetPasswordBtn) {
+  submitResetPasswordBtn.addEventListener("click", async () => {
+    const teacherId = document.getElementById("resetTeacherId").value.trim();
+    const newPassword = document.getElementById("resetNewPassword").value.trim();
+
+    if (!teacherId || !newPassword) {
+      alert("Please fill in both Faculty ID and New Password.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teacherId, newPassword })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("✅ Password reset successfully! You can now log in.");
+        document.getElementById("resetTeacherId").value = "";
+        document.getElementById("resetNewPassword").value = "";
+        if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (err) {
+      alert("Failed to connect to backend server.");
+    }
+  });
+}
