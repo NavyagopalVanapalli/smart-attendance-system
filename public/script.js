@@ -124,8 +124,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-        // FORCE EVERY STUDENT TO DEFAULT TO ABSENT ON PAGE LOAD
-        const isChecked = false;
+        // Default to saved state if checked via live polling or manually, otherwise default to absent
+        const isChecked = savedState ? savedState.checked : false;
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
         const statusText = isChecked ? "Present" : "Absent";
@@ -164,8 +164,8 @@ document.addEventListener("DOMContentLoaded", () => {
       attachDeleteListeners();
       updateSummary();
 
-      // START LIVE POLLING FOR AUTOMATIC QR SCAN TOGGLE
-      //startLivePolling(dept, rawHour, date);
+      // UNCOMMENTED & ACTIVATED: Real-time QR scan polling
+      startLivePolling(dept, rawHour, date);
 
     } catch (err) {
       console.error("Fetch error:", err);
@@ -176,9 +176,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function startLivePolling(dept, hour, date) {
     if (!dept || !hour || !date) return;
 
+    if (pollingInterval) clearInterval(pollingInterval);
+
     pollingInterval = setInterval(async () => {
       try {
         const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(hour)}&date=${encodeURIComponent(date)}`);
+        if (!liveRes.ok) return;
+        
         const liveData = await liveRes.json();
 
         if (Array.isArray(liveData)) {
@@ -665,7 +669,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // FORGOT PASSWORD MODAL LOGIC (MOVED INSIDE DOMContentLoaded)
+  // FORGOT PASSWORD MODAL LOGIC
   const forgotPasswordLink = document.getElementById("forgotPasswordLink");
   const forgotPasswordModal = document.getElementById("forgotPasswordModal");
   const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
