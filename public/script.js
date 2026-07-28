@@ -89,7 +89,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   async function renderStudentTable() {
-    // Clear any existing live polling timer when changing filters
     if (pollingInterval) clearInterval(pollingInterval);
 
     const dept = deptSelect ? deptSelect.value : "";
@@ -124,8 +123,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-        // Default to saved state if checked via live polling or manually, otherwise default to absent
         const isChecked = savedState ? savedState.checked : false;
+        const isDisabled = isChecked ? 'disabled' : ''; // LOCK TOGGLE IF PRESENT
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
         const statusText = isChecked ? "Present" : "Absent";
@@ -140,14 +139,13 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="parent-phone">${student.parent_phone}</td>
           <td>
             <label class="switch">
-              <input type="checkbox" class="attendance-toggle" ${isChecked ? 'checked' : ''} data-roll="${student.roll_no}" data-student-name="${student.full_name}" data-parent-phone="${student.parent_phone}">
+              <input type="checkbox" class="attendance-toggle" ${isChecked ? 'checked' : ''} ${isDisabled} data-roll="${student.roll_no}" data-student-name="${student.full_name}" data-parent-phone="${student.parent_phone}">
               <span class="slider round"></span>
             </label>
             <span class="status-text ${statusClass}">${statusText}</span>
           </td>
           <td><span class="status-pill ${pillClass}">${smsStatus}</span></td>
           <td style="text-align: center; display: flex; gap: 8px; justify-content: center; align-items: center;">
-            <!-- SHOW WHATSAPP BUTTON ONLY WHEN ABSENT -->
             <button class="whatsapp-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" data-phone="${student.parent_phone}" title="Send WhatsApp to Parent" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; display: ${isChecked ? 'none' : 'inline-block'};">
               💬 WhatsApp
             </button>
@@ -164,7 +162,6 @@ document.addEventListener("DOMContentLoaded", () => {
       attachDeleteListeners();
       updateSummary();
 
-      // UNCOMMENTED & ACTIVATED: Real-time QR scan polling
       startLivePolling(dept, rawHour, date);
 
     } catch (err) {
@@ -172,7 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // REAL-TIME POLLING: Auto-flips toggle to Present & hides WhatsApp button when student scans
   function startLivePolling(dept, hour, date) {
     if (!dept || !hour || !date) return;
 
@@ -192,8 +188,8 @@ document.addEventListener("DOMContentLoaded", () => {
               if (row) {
                 const toggle = row.querySelector(".attendance-toggle");
                 if (toggle && !toggle.checked) {
-                  toggle.checked = true; // Auto-move toggle to Present
-                  updateRowStatus(toggle, true, "Not Sent");
+                  toggle.checked = true;
+                  updateRowStatus(toggle, true, "Not Sent"); // Lock gets triggered here
                 }
               }
             }
@@ -202,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (e) {
         console.error("Live polling error:", e);
       }
-    }, 3000); // Check backend every 3 seconds
+    }, 3000);
   }
 
   function attachDeleteListeners() {
@@ -233,7 +229,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // DEDICATED WHATSAPP BUTTON EVENT LISTENER
   function attachWhatsAppListeners() {
     document.querySelectorAll(".whatsapp-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
@@ -260,7 +255,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // MANUAL TOGGLE SWITCH LISTENER
   function attachToggleListeners() {
     document.querySelectorAll(".attendance-toggle").forEach(toggle => {
       toggle.addEventListener("change", (e) => {
@@ -270,7 +264,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // DYNAMIC ROW UPDATE (TOGGLES PRESENT/ABSENT & SHOWS/HIDES WHATSAPP BUTTON)
   function updateRowStatus(toggle, isPresent, smsStatus) {
     const row = toggle.closest("tr");
     const statusText = row.querySelector(".status-text");
@@ -283,8 +276,10 @@ document.addEventListener("DOMContentLoaded", () => {
       smsPill.textContent = "Not Sent";
       smsPill.className = "status-pill pill-neutral";
 
-      // Hide WhatsApp button when Present
       if (whatsappBtn) whatsappBtn.style.display = "none";
+
+      // DISABLE/LOCK TOGGLE WHEN MARKED PRESENT
+      toggle.disabled = true;
     } else {
       statusText.textContent = "Absent";
       statusText.className = "status-text text-absent";
@@ -293,8 +288,9 @@ document.addEventListener("DOMContentLoaded", () => {
         : smsStatus === "Send Failed" ? "status-pill pill-failed"
         : "status-pill pill-neutral";
 
-      // Show WhatsApp button when Absent
       if (whatsappBtn) whatsappBtn.style.display = "inline-block";
+
+      toggle.disabled = false;
     }
     saveCurrentStateToMemory();
     updateSummary();
@@ -349,7 +345,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // THEME SWITCHER
   const themeToggleBtn = document.getElementById("themeToggleBtn");
   document.body.classList.remove("dark-theme");
 
@@ -366,7 +361,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // LOGIN BUTTON
   const loginBtn = document.getElementById("loginBtn");
   if (loginBtn) {
     loginBtn.addEventListener("click", async (e) => {
@@ -404,7 +398,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // LOGOUT BUTTON
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
       if (pollingInterval) clearInterval(pollingInterval);
@@ -420,7 +413,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ADD STUDENT MODAL
   const addStudentModal = document.getElementById("addStudentModal");
   const openAddStudentModalBtn = document.getElementById("openAddStudentModalBtn");
   const closeAddStudentModalBtn = document.getElementById("closeAddStudentModalBtn");
@@ -479,7 +471,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // SUBMIT ATTENDANCE TO DATABASE
   const submitAttendanceBtn = document.getElementById("submitAttendanceBtn");
   if (submitAttendanceBtn) {
     submitAttendanceBtn.addEventListener("click", async () => {
@@ -532,7 +523,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // CHANGE PASSWORD MODAL
   const changePasswordModal = document.getElementById("changePasswordModal");
   const openChangePasswordBtn = document.getElementById("changePasswordBtn");
   const closePasswordModalBtn = document.getElementById("closePasswordModalBtn");
@@ -593,7 +583,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // LOCATION-BOUND QR CODE GENERATOR
   const generateQrBtn = document.getElementById("generateQrBtn");
   const qrModal = document.getElementById("qrModal");
   const closeQrModalBtn = document.getElementById("closeQrModalBtn");
@@ -639,7 +628,6 @@ document.addEventListener("DOMContentLoaded", () => {
           if (data.success) {
             if (qrCodeContainer) qrCodeContainer.innerHTML = "";
             
-            // Construct dynamic student URL using active sessionId
             const studentAccessUrl = `${window.location.origin}/student?sessionId=${data.sessionId}`;
 
             if (typeof QRCode !== "undefined" && qrCodeContainer) {
@@ -669,7 +657,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // FORGOT PASSWORD MODAL LOGIC
   const forgotPasswordLink = document.getElementById("forgotPasswordLink");
   const forgotPasswordModal = document.getElementById("forgotPasswordModal");
   const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
