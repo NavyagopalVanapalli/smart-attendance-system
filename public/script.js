@@ -1,29 +1,30 @@
+// 1. Immediately apply saved theme on load (prevents screen flicker)
+if (localStorage.getItem("appTheme") === "dark") {
+  document.body.classList.add("dark-mode");
+}
+
+// 2. Global function directly reachable by onclick attribute
+function toggleDarkMode() {
+  document.body.classList.toggle("dark-mode");
+  const isDark = document.body.classList.contains("dark-mode");
+
+  // Save preference across sessions
+  localStorage.setItem("appTheme", isDark ? "dark" : "light");
+
+  // Update button text/icon if element exists
+  const btn = document.getElementById("themeToggleBtn");
+  if (btn) {
+    btn.textContent = isDark ? "☀️ Light Mode" : "🌙 Dark Mode";
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  // Update button text on page load based on active theme
   const themeToggleBtn = document.getElementById("themeToggleBtn");
-
-  // 1. Check saved preference or system theme on load
-  const savedTheme = localStorage.getItem("appTheme");
-  if (savedTheme === "dark") {
-    document.body.classList.add("dark-mode");
-    if (themeToggleBtn) themeToggleBtn.textContent = "☀️ Light Mode";
-  } else {
-    document.body.classList.remove("dark-mode");
-    if (themeToggleBtn) themeToggleBtn.textContent = "🌙 Dark Mode";
+  if (themeToggleBtn && document.body.classList.contains("dark-mode")) {
+    themeToggleBtn.textContent = "☀️ Light Mode";
   }
 
-  // 2. Toggle button event listener
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener("click", () => {
-      document.body.classList.toggle("dark-mode");
-      const isDarkMode = document.body.classList.contains("dark-mode");
-
-      // Save preference across tabs/sessions
-      localStorage.setItem("appTheme", isDarkMode ? "dark" : "light");
-
-      // Update button text/icon
-      themeToggleBtn.textContent = isDarkMode ? "☀️ Light Mode" : "🌙 Dark Mode";
-    });
-  }
 
   const API_BASE_URL = `${window.location.origin}/api`;
   const dateInput = document.getElementById("attendanceDate");
