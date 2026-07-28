@@ -12,7 +12,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH = process.env.TWILIO_AUTH_TOKEN;
@@ -96,9 +96,7 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-
-
-// Reset / Forgot Password Endpoint (Demo)
+// RESET / FORGOT PASSWORD ENDPOINT (DEMO)
 app.post('/api/reset-password', (req, res) => {
   const { teacherId, newPassword } = req.body;
 
@@ -117,6 +115,7 @@ app.post('/api/reset-password', (req, res) => {
     }
   });
 });
+
 // CHANGE TEACHER PASSWORD API
 app.post('/api/change-password', (req, res) => {
   const { teacherId, currentPassword, newPassword } = req.body;
@@ -151,7 +150,6 @@ app.get('/api/students', (req, res) => {
 app.get('/api/attendance/live', (req, res) => {
   const { dept, hour, date } = req.query;
 
-  // Uses LIKE so 'MCA' matches 'MCA - Master of Computer Applications'
   const query = `
     SELECT roll_no, status 
     FROM attendance 
@@ -258,27 +256,6 @@ app.post('/api/qr/generate-location', (req, res) => {
   });
 });
 
-// ROBUST ROUTE TO SERVE STUDENT SCANNER PAGE
-const serveStudentPage = (req, res) => {
-  const possiblePaths = [
-    path.join(__dirname, 'student.html'),
-    path.join(__dirname, 'Student.html'),
-    path.join(__dirname, 'public', 'student.html'),
-    path.join(__dirname, 'public', 'Student.html')
-  ];
-
-  for (const filePath of possiblePaths) {
-    if (fs.existsSync(filePath)) {
-      return res.sendFile(filePath);
-    }
-  }
-  res.status(404).send("student.html file missing from server repository.");
-};
-
-app.get('/student', serveStudentPage);
-app.get('/student.html', serveStudentPage);
-app.get('/Student.html', serveStudentPage);
-
 // STUDENT QR ATTENDANCE VERIFICATION & RECORDING
 app.post('/api/qr/verify-student', (req, res) => {
   const { rollNo, studentLat, studentLng, sessionId } = req.body;
@@ -300,7 +277,8 @@ app.post('/api/qr/verify-student', (req, res) => {
     parseFloat(studentLng)
   );
 
-  const MAX_RADIUS_METERS = 200; // Increased to 200m for easy testing
+  // INCREASED TO 500KM TO ALLOW LAPTOP / HOTSPOT WI-FI LOCATION TESTING
+  const MAX_RADIUS_METERS = 500000; 
 
   if (distance > MAX_RADIUS_METERS) {
     return res.status(403).json({ 
@@ -357,6 +335,42 @@ app.delete('/api/students/delete', (req, res) => {
 
     res.json({ success: true, message: "Student deleted successfully!" });
   });
+});
+
+// ROUTE TO SERVE STUDENT SCANNER PAGE
+const serveStudentPage = (req, res) => {
+  const possiblePaths = [
+    path.join(__dirname, 'student.html'),
+    path.join(__dirname, 'Student.html'),
+    path.join(__dirname, 'public', 'student.html'),
+    path.join(__dirname, 'public', 'Student.html')
+  ];
+
+  for (const filePath of possiblePaths) {
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+  res.status(404).send("student.html file missing from server repository.");
+};
+
+app.get('/student', serveStudentPage);
+app.get('/student.html', serveStudentPage);
+app.get('/Student.html', serveStudentPage);
+
+// ROUTE TO SERVE MAIN INDEX PAGE (PREVENTS 404 ON ROOT /)
+app.get('/', (req, res) => {
+  const possibleIndexPaths = [
+    path.join(__dirname, 'index.html'),
+    path.join(__dirname, 'public', 'index.html')
+  ];
+
+  for (const filePath of possibleIndexPaths) {
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+  res.status(404).send("index.html missing from server repository.");
 });
 
 // START SERVER
