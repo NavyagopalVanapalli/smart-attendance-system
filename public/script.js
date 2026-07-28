@@ -678,48 +678,53 @@ const forgotPasswordModal = document.getElementById("forgotPasswordModal");
 const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
 const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
 
-if (forgotPasswordLink) {
-  forgotPasswordLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (forgotPasswordModal) forgotPasswordModal.classList.remove("hidden");
-  });
-}
+const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+  const forgotPasswordModal = document.getElementById("forgotPasswordModal");
+  const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
+  const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
 
-if (closeForgotModalBtn) {
-  closeForgotModalBtn.addEventListener("click", () => {
-    if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
-  });
-}
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (forgotPasswordModal) forgotPasswordModal.classList.remove("hidden");
+    });
+  }
 
-if (submitResetPasswordBtn) {
-  submitResetPasswordBtn.addEventListener("click", async () => {
-    const teacherId = document.getElementById("resetTeacherId").value.trim();
-    const newPassword = document.getElementById("resetNewPassword").value.trim();
+  if (closeForgotModalBtn) {
+    closeForgotModalBtn.addEventListener("click", () => {
+      if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+    });
+  }
 
-    if (!teacherId || !newPassword) {
-      alert("Please fill in both Faculty ID and New Password.");
-      return;
-    }
+  if (submitResetPasswordBtn) {
+    submitResetPasswordBtn.addEventListener("click", async () => {
+      const teacherId = document.getElementById("resetTeacherId").value.trim();
+      const newPassword = document.getElementById("resetNewPassword").value.trim();
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherId, newPassword })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert("✅ Password reset successfully! You can now log in.");
-        document.getElementById("resetTeacherId").value = "";
-        document.getElementById("resetNewPassword").value = "";
-        if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
-      } else {
-        alert("Error: " + data.message);
+      if (!teacherId || !newPassword) {
+        alert("Please fill in both Faculty ID and New Password.");
+        return;
       }
-    } catch (err) {
-      alert("Failed to connect to backend server.");
-    }
-  });
-}
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teacherId, newPassword })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert("✅ Password reset successfully! You can now log in.");
+          document.getElementById("resetTeacherId").value = "";
+          document.getElementById("resetNewPassword").value = "";
+          if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server.");
+      }
+    });
+  };
