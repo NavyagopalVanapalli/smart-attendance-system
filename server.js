@@ -146,11 +146,11 @@ app.get('/api/students', (req, res) => {
   });
 });
 
-// GET REAL-TIME ATTENDANCE STATUS FOR A SPECIFIC HOUR, DEPT & DATE
+// GET REAL-TIME ATTENDANCE STATUS FOR A SPECIFIC FACULTY, HOUR, DEPT & DATE
 app.get('/api/attendance/live', (req, res) => {
-  const { dept, hour, date } = req.query;
+  const { dept, hour, date, teacherId } = req.query;
 
-  const query = `
+  let query = `
     SELECT roll_no, status 
     FROM attendance 
     WHERE dept_code = ? 
@@ -158,8 +158,15 @@ app.get('/api/attendance/live', (req, res) => {
       AND date = ? 
       AND status = 'Present'
   `;
+  const params = [dept, hour, date];
 
-  db.query(query, [dept, hour, date], (err, results) => {
+  // Strictly isolate query by faculty ID if passed
+  if (teacherId) {
+    query += ` AND teacher_id = ?`;
+    params.push(teacherId);
+  }
+
+  db.query(query, params, (err, results) => {
     if (err) {
       console.error("Error fetching live attendance:", err);
       return res.status(500).json({ error: "Database query failed" });
