@@ -380,6 +380,14 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   height:100px;
   width:100px;
 }
+
+
+.nav-logo-img{
+  
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+}
 .lms-login-card {
   display: flex;
   width: 850px;
