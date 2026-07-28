@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (dateInput) dateInput.valueAsDate = new Date();
 
   let attendanceStateMemory = JSON.parse(localStorage.getItem("attendanceStateMemory")) || {};
-  let pollingInterval = null;
+  let pollingInterval = null; // Holds the real-time polling timer
 
   const loginSection = document.getElementById("loginSection");
   const dashboardSection = document.getElementById("dashboardSection");
@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (logoutBtn) logoutBtn.classList.remove("hidden");
     if (changePasswordBtn) changePasswordBtn.classList.remove("hidden");
 
+    // Display Faculty Name and ID on Dashboard Header
     const facultyInfoDisplay = document.getElementById("facultyInfoDisplay");
     const teacherName = teacher.teacher_name || teacher.full_name || "Faculty";
     const teacherId = teacher.teacher_id || "N/A";
@@ -75,6 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderStudentTable();
   }
 
+  // Scoped key strictly isolated by Faculty ID + Session Details
   function getScopedKey(rollNo) {
     const activeTeacher = getActiveTeacher();
     const teacherId = activeTeacher ? activeTeacher.teacher_id : "guest";
@@ -82,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const dept = deptSelect ? deptSelect.value : "";
     const yr = yearSelect ? yearSelect.value : "";
     const sec = secSelect ? secSelect.value : "";
-    const hr = hourSelect ? hourSelect.value : "";
+    const hr = hourSelect ? hourSelect.value.split(" ")[0] : "";
     return `attendance_${teacherId}_${d}_${dept}_${yr}_${sec}_${hr}_${rollNo}`;
   }
 
@@ -123,27 +125,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const sec = secSelect ? secSelect.value : "";
     const rawHour = hourSelect ? hourSelect.value : "";
     const date = dateInput ? dateInput.value : "";
+    const activeHour = rawHour ? rawHour.split(" ")[0] + " " + (rawHour.split(" ")[1] || "") : "";
 
     const badge = document.getElementById("activeSectionBadge");
-    if (badge) badge.textContent = `${dept} - ${year} (${sec}) | ${rawHour}`;
+    if (badge) badge.textContent = `${dept} - ${year} (${sec}) | ${activeHour}`;
 
     const tableBody = document.getElementById("studentTableBody");
     if (!tableBody) return;
 
     try {
-      // 1. Fetch Students
-      const response = await fetch(`${API_BASE_URL}/students?dept=${dept}&year=${year}&section=${sec}`);
+      // Fetch faculty-specific student list
+      const response = await fetch(`${API_BASE_URL}/students?dept=${dept}&year=${year}&section=${sec}&teacherId=${teacherId}`);
       const students = await response.json();
-
-      // 2. Fetch Live/Saved Attendance from DB
-      const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(rawHour)}&date=${encodeURIComponent(date)}`);
-      const dbRecords = liveRes.ok ? await liveRes.json() : [];
-      const presentRollsInDb = new Set(dbRecords.map(r => r.roll_no));
 
       tableBody.innerHTML = "";
 
       if (!students || students.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted, #888);">No students found for this section.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted, #888);">No students found for this section. Click 'Add Student' to add one.</td></tr>`;
         updateSummary();
         return;
       }
@@ -155,8 +153,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-        const isPresentInDb = presentRollsInDb.has(student.roll_no);
-        const isChecked = isPresentInDb || (savedState ? savedState.checked : false);
+        // Isolate state per faculty member session
+        const isChecked = savedState ? savedState.checked : false;
+        const isDisabled = isChecked ? 'disabled' : ''; // LOCK TOGGLE IF PRESENT FOR THIS FACULTY
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
         const statusText = isChecked ? "Present" : "Absent";
@@ -164,9 +163,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const pillClass = smsStatus.startsWith("SMS Sent") || smsStatus === "WhatsApp Opened" ? "pill-sent"
           : smsStatus === "Send Failed" ? "pill-failed"
           : "pill-neutral";
-
-        // Lock toggle only if record is already present in DB
-        const isDisabled = isPresentInDb ? 'disabled' : '';
 
         tr.innerHTML = `
           <td class="roll-no">${student.roll_no}</td>
@@ -211,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     pollingInterval = setInterval(async () => {
       try {
-        const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(hour)}&date=${encodeURIComponent(date)}`);
+        const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(hour)}&date=${encodeURIComponent(date)}&teacherId=${encodeURIComponent(teacherId)}`);
         if (!liveRes.ok) return;
         
         const liveData = await liveRes.json();
@@ -224,7 +220,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 const toggle = row.querySelector(".attendance-toggle");
                 if (toggle && !toggle.checked) {
                   toggle.checked = true;
-                  toggle.disabled = true; // Lock when marked Present via live DB QR scan
                   updateRowStatus(toggle, true, "Not Sent");
                 }
               }
@@ -243,10 +238,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const roll_no = e.currentTarget.getAttribute("data-roll");
         const studentName = e.currentTarget.getAttribute("data-name");
         const dept_code = deptSelect.value;
+        const activeTeacher = getActiveTeacher();
 
         if (confirm(`Are you sure you want to delete student "${studentName}" (${roll_no})?`)) {
           try {
-            const response = await fetch(`${API_BASE_URL}/students/delete?roll_no=${encodeURIComponent(roll_no)}&dept_code=${encodeURIComponent(dept_code)}`, {
+            const response = await fetch(`${API_BASE_URL}/students/delete?roll_no=${encodeURIComponent(roll_no)}&dept_code=${encodeURIComponent(dept_code)}&teacherId=${encodeURIComponent(activeTeacher ? activeTeacher.teacher_id : '')}`, {
               method: "DELETE"
             });
             const data = await response.json();
@@ -313,6 +309,9 @@ document.addEventListener("DOMContentLoaded", () => {
       smsPill.className = "status-pill pill-neutral";
 
       if (whatsappBtn) whatsappBtn.style.display = "none";
+
+      // DISABLE/LOCK TOGGLE WHEN MARKED PRESENT
+      toggle.disabled = true;
     } else {
       statusText.textContent = "Absent";
       statusText.className = "status-text text-absent";
@@ -322,8 +321,9 @@ document.addEventListener("DOMContentLoaded", () => {
         : "status-pill pill-neutral";
 
       if (whatsappBtn) whatsappBtn.style.display = "inline-block";
-    }
 
+      toggle.disabled = false;
+    }
     saveCurrentStateToMemory();
     updateSummary();
   }
@@ -375,6 +375,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (absentList && absentCount === 0) {
       absentList.innerHTML = '<li class="empty-msg">No students marked absent yet.</li>';
     }
+  }
+
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+  document.body.classList.remove("dark-theme");
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-theme");
+      const isDark = document.body.classList.contains("dark-theme");
+      const btnText = themeToggleBtn.querySelector("span");
+      const btnIcon = themeToggleBtn.querySelector("i");
+      
+      if (btnText) btnText.textContent = isDark ? "Light Mode" : "Dark Mode";
+      if (btnIcon) btnIcon.className = isDark ? "fa-solid fa-sun" : "fa-solid fa-moon";
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+    });
   }
 
   const loginBtn = document.getElementById("loginBtn");
@@ -441,6 +457,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const roll_no = document.getElementById("newRollNo").value.trim();
       const full_name = document.getElementById("newStudentName").value.trim();
       const parent_phone = document.getElementById("newParentPhone").value.trim();
+      const activeTeacher = getActiveTeacher();
 
       if (!roll_no || !full_name || !parent_phone) {
         alert("Please fill in all student details!");
@@ -464,7 +481,8 @@ document.addEventListener("DOMContentLoaded", () => {
             parent_phone,
             dept_code: deptSelect.value,
             year_level: yearSelect.value,
-            section: secSelect.value
+            section: secSelect.value,
+            teacher_id: activeTeacher ? activeTeacher.teacher_id : null
           })
         });
 
@@ -529,12 +547,196 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await response.json();
         if (data.success) {
           alert(`✅ Attendance saved permanently!`);
-          renderStudentTable();
         } else {
           alert("Error: " + data.message);
         }
       } catch (err) {
         alert("Server error when saving attendance.");
+      }
+    });
+  }
+
+  const changePasswordModal = document.getElementById("changePasswordModal");
+  const openChangePasswordBtn = document.getElementById("changePasswordBtn");
+  const closePasswordModalBtn = document.getElementById("closePasswordModalBtn");
+  const savePasswordBtn = document.getElementById("savePasswordBtn");
+
+  if (openChangePasswordBtn) {
+    openChangePasswordBtn.addEventListener("click", () => {
+      if (changePasswordModal) changePasswordModal.classList.remove("hidden");
+    });
+  }
+
+  if (closePasswordModalBtn) {
+    closePasswordModalBtn.addEventListener("click", () => {
+      if (changePasswordModal) changePasswordModal.classList.add("hidden");
+    });
+  }
+
+  if (savePasswordBtn) {
+    savePasswordBtn.addEventListener("click", async () => {
+      const currentPassword = document.getElementById("currentPassword").value.trim();
+      const newPassword = document.getElementById("newPassword").value.trim();
+      const activeTeacher = getActiveTeacher();
+
+      if (!currentPassword || !newPassword) {
+        alert("Please enter both current and new passwords.");
+        return;
+      }
+
+      if (!activeTeacher || !activeTeacher.teacher_id) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/change-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            teacherId: activeTeacher.teacher_id,
+            currentPassword,
+            newPassword
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert("✅ Password updated successfully!");
+          document.getElementById("currentPassword").value = "";
+          document.getElementById("newPassword").value = "";
+          if (changePasswordModal) changePasswordModal.classList.add("hidden");
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server.");
+      }
+    });
+  }
+
+  const generateQrBtn = document.getElementById("generateQrBtn");
+  const qrModal = document.getElementById("qrModal");
+  const closeQrModalBtn = document.getElementById("closeQrModalBtn");
+  const qrCodeContainer = document.getElementById("qrCodeContainer");
+  const qrInfoText = document.getElementById("qrInfoText");
+
+  if (generateQrBtn) {
+    generateQrBtn.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+
+      const geoOptions = {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000
+      };
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const teacherLat = position.coords.latitude;
+        const teacherLng = position.coords.longitude;
+        const activeTeacher = getActiveTeacher() || { teacher_id: "FAC101" };
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/qr/generate-location`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dept: deptSelect.value,
+              year: yearSelect.value,
+              section: secSelect.value,
+              hour: hourSelect.value,
+              date: dateInput.value,
+              teacherLat,
+              teacherLng,
+              teacherId: activeTeacher.teacher_id
+            })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            if (qrCodeContainer) qrCodeContainer.innerHTML = "";
+            
+            const studentAccessUrl = `${window.location.origin}/student?sessionId=${data.sessionId}`;
+
+            if (typeof QRCode !== "undefined" && qrCodeContainer) {
+              new QRCode(qrCodeContainer, {
+                text: studentAccessUrl,
+                width: 220,
+                height: 220
+              });
+            }
+            if (qrInfoText) {
+              qrInfoText.textContent = `${deptSelect.value} - ${secSelect.value} | Scan to Mark Attendance 📍`;
+            }
+            if (qrModal) qrModal.classList.remove("hidden");
+          }
+        } catch (err) {
+          alert("Failed to connect to backend server.");
+        }
+      }, (err) => {
+        alert("Please allow GPS location permission to generate classroom QR code.");
+      }, geoOptions);
+    });
+  }
+
+  if (closeQrModalBtn) {
+    closeQrModalBtn.addEventListener("click", () => {
+      if (qrModal) qrModal.classList.add("hidden");
+    });
+  }
+
+  const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+  const forgotPasswordModal = document.getElementById("forgotPasswordModal");
+  const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
+  const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
+
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (forgotPasswordModal) forgotPasswordModal.classList.remove("hidden");
+    });
+  }
+
+  if (closeForgotModalBtn) {
+    closeForgotModalBtn.addEventListener("click", () => {
+      if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+    });
+  }
+
+  if (submitResetPasswordBtn) {
+    submitResetPasswordBtn.addEventListener("click", async () => {
+      const teacherId = document.getElementById("resetTeacherId").value.trim();
+      const newPassword = document.getElementById("resetNewPassword").value.trim();
+
+      if (!teacherId || !newPassword) {
+        alert("Please fill in both Faculty ID and New Password.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teacherId, newPassword })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert("✅ Password reset successfully! You can now log in.");
+          document.getElementById("resetTeacherId").value = "";
+          document.getElementById("resetNewPassword").value = "";
+          if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server.");
       }
     });
   }
