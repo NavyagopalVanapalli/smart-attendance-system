@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const API_BASE_URL = `${window.location.origin}/api`;
+ const API_BASE_URL = `${window.location.origin}/api`;
   const dateInput = document.getElementById("attendanceDate");
   if (dateInput) dateInput.valueAsDate = new Date();
 
