@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
- const API_BASE_URL = `${window.location.origin}/api`;
+  const API_BASE_URL = `${window.location.origin}/api`;
   const dateInput = document.getElementById("attendanceDate");
   if (dateInput) dateInput.valueAsDate = new Date();
 
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = getScopedKey(student.roll_no);
         const savedState = attendanceStateMemory[key];
 
-       // FORCE EVERY STUDENT TO DEFAULT TO ABSENT ON PAGE LOAD
+        // FORCE EVERY STUDENT TO DEFAULT TO ABSENT ON PAGE LOAD
         const isChecked = false;
         const smsStatus = savedState ? savedState.smsStatus : "Not Sent";
 
@@ -665,20 +665,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher"));
-  if (activeTeacher) {
-    showDashboard(activeTeacher);
-  }
-});
-
-
-// FORGOT PASSWORD MODAL LOGIC
-const forgotPasswordLink = document.getElementById("forgotPasswordLink");
-const forgotPasswordModal = document.getElementById("forgotPasswordModal");
-const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
-const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
-
-const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+  // FORGOT PASSWORD MODAL LOGIC (MOVED INSIDE DOMContentLoaded)
+  const forgotPasswordLink = document.getElementById("forgotPasswordLink");
   const forgotPasswordModal = document.getElementById("forgotPasswordModal");
   const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
   const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
@@ -727,4 +715,10 @@ const forgotPasswordLink = document.getElementById("forgotPasswordLink");
         alert("Failed to connect to backend server.");
       }
     });
-  };
+  }
+
+  const activeTeacher = JSON.parse(localStorage.getItem("activeTeacher"));
+  if (activeTeacher) {
+    showDashboard(activeTeacher);
+  }
+});
