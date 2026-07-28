@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const dateInput = document.getElementById("attendanceDate");
   if (dateInput) dateInput.valueAsDate = new Date();
 
+  // Shared state memory across interactions
   let attendanceStateMemory = JSON.parse(localStorage.getItem("attendanceStateMemory")) || {};
   let pollingInterval = null; // Holds the real-time polling timer
 
@@ -16,10 +17,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const secSelect = document.getElementById("sectionSelect");
   const hourSelect = document.getElementById("hourSelect");
 
+  // Changed to sessionStorage to isolate teacher identity per tab
   function getActiveTeacher() {
-    return JSON.parse(localStorage.getItem("activeTeacher")) || null;
+    return JSON.parse(sessionStorage.getItem("activeTeacher")) || null;
   }
 
+  // Changed to sessionStorage to isolate active UI filters per tab
   function saveFilterState() {
     const filters = {
       dept: deptSelect ? deptSelect.value : "",
@@ -28,11 +31,11 @@ document.addEventListener("DOMContentLoaded", () => {
       hour: hourSelect ? hourSelect.value : "",
       date: dateInput ? dateInput.value : ""
     };
-    localStorage.setItem("college_attendance_filters", JSON.stringify(filters));
+    sessionStorage.setItem("college_attendance_filters", JSON.stringify(filters));
   }
 
   function restoreFilterState() {
-    const savedFilters = localStorage.getItem("college_attendance_filters");
+    const savedFilters = sessionStorage.getItem("college_attendance_filters");
     if (!savedFilters) return;
 
     try {
@@ -399,7 +402,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json();
 
         if (data.success) {
-          localStorage.setItem("activeTeacher", JSON.stringify(data.teacher));
+          // Save active session to sessionStorage so tabs do not conflict
+          sessionStorage.setItem("activeTeacher", JSON.stringify(data.teacher));
           if (passwordInput) passwordInput.value = "";
           showDashboard(data.teacher);
         } else {
@@ -415,10 +419,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
       if (pollingInterval) clearInterval(pollingInterval);
-      localStorage.removeItem("activeTeacher");
-      localStorage.removeItem("college_attendance_filters");
-      localStorage.removeItem("attendanceStateMemory"); // Wipes temporary state on logout
-      attendanceStateMemory = {};
+      sessionStorage.removeItem("activeTeacher");
+      sessionStorage.removeItem("college_attendance_filters");
 
       if (dashboardSection) dashboardSection.classList.add("hidden");
       if (logoutBtn) logoutBtn.classList.add("hidden");
@@ -725,6 +727,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Restore session scoped to current tab
   const activeTeacher = getActiveTeacher();
   if (activeTeacher) {
     showDashboard(activeTeacher);
