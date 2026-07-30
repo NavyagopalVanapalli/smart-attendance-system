@@ -1,17 +1,15 @@
-// 1. Immediately apply saved theme on load (prevents screen flicker)
+// 1. Immediately apply saved theme on load
 if (localStorage.getItem("appTheme") === "dark") {
   document.body.classList.add("dark-mode");
 }
 
-// 2. Global function directly reachable by onclick attribute
+// 2. Global function reachable by theme toggle button
 function toggleDarkMode() {
   document.body.classList.toggle("dark-mode");
   const isDark = document.body.classList.contains("dark-mode");
 
-  // Save preference across sessions
   localStorage.setItem("appTheme", isDark ? "dark" : "light");
 
-  // Update button text/icon if element exists
   const btn = document.getElementById("themeToggleBtn");
   if (btn) {
     btn.textContent = isDark ? "☀️ Light Mode" : "🌙 Dark Mode";
@@ -19,7 +17,6 @@ function toggleDarkMode() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Update button text on page load based on active theme
   const themeToggleBtn = document.getElementById("themeToggleBtn");
   if (themeToggleBtn && document.body.classList.contains("dark-mode")) {
     themeToggleBtn.textContent = "☀️ Light Mode";
@@ -29,9 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const dateInput = document.getElementById("attendanceDate");
   if (dateInput) dateInput.valueAsDate = new Date();
 
-  // Shared state memory across interactions
   let attendanceStateMemory = JSON.parse(localStorage.getItem("attendanceStateMemory")) || {};
-  let pollingInterval = null; // Holds the real-time polling timer
+  let pollingInterval = null;
 
   const loginSection = document.getElementById("loginSection");
   const dashboardSection = document.getElementById("dashboardSection");
@@ -91,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!teacherBadge) {
         teacherBadge = document.createElement("div");
         teacherBadge.id = "teacherProfileBadge";
-        teacherBadge.style.cssText = "padding: 8px 16px; background: rgba(99, 102, 241, 0.15); border-radius: 8px; font-weight: 600; color: var(--text-main); margin-bottom: 12px;";
+        teacherBadge.style.cssText = "padding: 10px 18px; background: rgba(99, 102, 241, 0.15); border: 1px solid var(--glass-border); border-radius: 12px; font-weight: 600; color: var(--text-main); margin-bottom: 15px; backdrop-filter: var(--blur-amount);";
         const dashboardHeader = dashboardSection.querySelector(".dashboard-header") || dashboardSection;
         dashboardHeader.prepend(teacherBadge);
       }

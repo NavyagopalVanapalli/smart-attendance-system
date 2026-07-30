@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart College Attendance Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -58,13 +61,13 @@
           <input type="password" id="password" placeholder="Your Password *" required>
         </div>
         <button id="loginBtn" class="btn lms-btn-submit">LOGIN</button>
-        <a href="#" id="forgotPasswordLink" style="color: var(--primary); font-size: 0.85rem; display: block; margin-top: 12px; text-decoration: none;">Forgot Password?</a>
+        <a href="#" id="forgotPasswordLink" style="color: var(--primary); font-size: 0.85rem; display: block; margin-top: 14px; text-decoration: none; font-weight: 600;">Forgot Password?</a>
 
         <!-- Forgot Password Modal -->
         <div id="forgotPasswordModal" class="modal-overlay hidden">
           <div class="modal-card">
             <h3>🔑 Reset Password</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Enter your Faculty ID and set a new password.</p>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Enter your Faculty ID and set a new password.</p>
             
             <div class="input-group">
               <label>Faculty ID</label>
@@ -76,7 +79,7 @@
               <input type="password" id="resetNewPassword" placeholder="Enter new password">
             </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+            <div class="modal-actions">
               <button id="closeForgotModalBtn" class="btn btn-secondary">Cancel</button>
               <button id="submitResetPasswordBtn" class="btn btn-primary">Reset Password</button>
             </div>
@@ -205,11 +208,11 @@
   <div id="confirmationModal" class="modal-overlay hidden">
     <div class="modal-card">
       <h3>Confirm Absence</h3>
-      <p>Student: <strong id="modalStudentName"></strong></p>
+      <p style="margin-top: 10px;">Student: <strong id="modalStudentName"></strong></p>
       <p>Parent Phone: <strong id="modalParentPhone"></strong></p>
-      <div class="sms-preview">
+      <div class="sms-preview" style="background: var(--card-bg); padding: 12px; border-radius: 10px; margin: 15px 0; border: 1px solid var(--glass-border);">
         <p><strong>SMS Preview:</strong></p>
-        <p id="smsPreviewText"></p>
+        <p id="smsPreviewText" style="font-size: 0.85rem; color: var(--text-muted);"></p>
       </div>
       <div class="modal-actions">
         <button id="confirmSendSmsBtn" class="btn btn-primary">Yes, Send SMS</button>
@@ -222,7 +225,7 @@
   <!-- ADD STUDENT MODAL -->
   <div id="addStudentModal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h3>Add New Student</h3>
+      <h3 style="margin-bottom: 15px;">Add New Student</h3>
       <div class="input-group">
         <label>Roll Number</label>
         <input type="text" id="newRollNo" placeholder="e.g. 104">
@@ -245,7 +248,7 @@
   <!-- CHANGE PASSWORD MODAL -->
   <div id="changePasswordModal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h3>Change Faculty Password</h3>
+      <h3 style="margin-bottom: 15px;">Change Faculty Password</h3>
       <div class="input-group">
         <label>Current Password</label>
         <input type="password" id="currentPassword" placeholder="Enter current password">
@@ -265,7 +268,7 @@
   <div id="qrModal" class="modal-overlay hidden">
     <div class="modal-card" style="text-align: center;">
       <h3>Classroom Attendance QR Code</h3>
-      <div id="qrCodeContainer" style="margin: 20px 0;"></div>
+      <div id="qrCodeContainer" style="margin: 20px auto; display: flex; justify-content: center; background: #fff; padding: 15px; border-radius: 16px; width: fit-content;"></div>
       <p id="qrInfoText" style="font-weight: 600; font-size: 0.9rem; color: var(--primary);"></p>
       <div class="modal-actions" style="justify-content: center; margin-top: 20px;">
         <button id="closeQrModalBtn" class="btn btn-secondary">Close</button>

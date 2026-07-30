@@ -4,24 +4,82 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student QR Attendance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-    .card { background: #1e293b; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; border: 1px solid #334155; }
-    h2 { font-size: 1.5rem; margin-bottom: 8px; color: #38bdf8; }
-    p { font-size: 0.9rem; color: #94a3b8; margin-bottom: 24px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    
+    body {
+      background: radial-gradient(circle at 50% 10%, rgba(56, 189, 248, 0.15), transparent 40%),
+                  linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      background-attachment: fixed;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(30, 41, 59, 0.65);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 32px 28px;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-top: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 8px; color: #38bdf8; }
+    p { font-size: 0.88rem; color: #94a3b8; margin-bottom: 24px; line-height: 1.5; }
+
     .input-group { margin-bottom: 20px; text-align: left; }
-    label { display: block; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 6px; }
-    input[type="text"] { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #ffffff; font-size: 1rem; outline: none; transition: border 0.2s; }
-    input[type="text"]:focus { border-color: #38bdf8; }
-    input[readonly] { background: #1e293b; opacity: 0.8; cursor: not-allowed; border-color: #475569; }
-    .btn { width: 100%; padding: 14px; background: #2563eb; color: #ffffff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    .btn:hover { background: #1d4ed8; }
-    .btn:disabled { background: #475569; cursor: not-allowed; }
-    .status-msg { margin-top: 18px; font-size: 0.9rem; border-radius: 8px; padding: 10px; display: none; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
+    input[readonly] { background: rgba(30, 41, 59, 0.4); opacity: 0.8; cursor: not-allowed; border-color: rgba(255, 255, 255, 0.08); }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+      transition: all 0.25s ease;
+    }
+
+    .btn:hover { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5); }
+    .btn:disabled { background: #475569; border-color: transparent; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .status-msg { margin-top: 18px; font-size: 0.88rem; border-radius: 12px; padding: 12px; display: none; backdrop-filter: blur(10px); }
     .status-msg.success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid #22c55e; }
     .status-msg.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; }
-    .device-info { font-size: 0.75rem; color: #64748b; margin-top: 15px; }
+
+    .device-info { font-size: 0.75rem; color: #64748b; margin-top: 16px; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -115,7 +173,6 @@
             const data = await response.json();
 
             if (data.success) {
-              // Lock roll number to this device permanently on first successful scan
               localStorage.setItem('assigned_roll_no', rollNo);
               rollInput.readOnly = true;
               document.getElementById('deviceInfo').innerText = "🔒 Device linked to Roll No: " + rollNo;
