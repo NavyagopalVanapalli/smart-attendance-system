@@ -388,3 +388,89 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
 });
+
+
+// ==================== ADMIN API ENDPOINTS ====================
+
+// 1. Get High-Level Dashboard Statistics
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    const [[{ totalStudents }]] = await db.query("SELECT COUNT(*) as totalStudents FROM students");
+    const [[{ totalTeachers }]] = await db.query("SELECT COUNT(*) as totalTeachers FROM teachers");
+    const [[{ todayPresent }]] = await db.query(
+      "SELECT COUNT(*) as todayPresent FROM attendance WHERE date = CURDATE() AND status = 'Present'"
+    );
+    const [[{ todayAbsent }]] = await db.query(
+      "SELECT COUNT(*) as todayAbsent FROM attendance WHERE date = CURDATE() AND status = 'Absent'"
+    );
+
+    res.json({
+      totalStudents,
+      totalTeachers,
+      todayPresent,
+      todayAbsent
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Export All Attendance Records as CSV
+app.get('/api/admin/export-attendance', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT 
+        a.id, a.date, a.hour, a.roll_no, s.full_name AS student_name, 
+        a.dept_code, a.status, a.teacher_id 
+      FROM attendance a
+      LEFT JOIN students s ON a.roll_no = s.roll_no
+      ORDER BY a.date DESC, a.hour ASC
+    `);
+
+    // Build CSV Header & Rows
+    let csvContent = "ID,Date,Hour,Roll No,Student Name,Department,Status,Teacher ID\n";
+    rows.forEach(r => {
+      csvContent += `"${r.id}","${r.date.toISOString().split('T')[0]}","${r.hour}","${r.roll_no}","${r.student_name || ''}","${r.dept_code}","${r.status}","${r.teacher_id}"\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="attendance_report.csv"');
+    res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Add a New Teacher
+app.post('/api/admin/teachers', async (req, res) => {
+  const { teacher_id, full_name, email, dept_code, password_hash } = req.body;
+  if (!teacher_id || !full_name || !dept_code) {
+    return res.status(400).json({ error: "Missing required teacher fields." });
+  }
+  try {
+    await db.query(
+      "INSERT INTO teachers (teacher_id, full_name, email, dept_code, password_hash) VALUES (?, ?, ?, ?, ?)",
+      [teacher_id, full_name, email || null, dept_code, password_hash || '123456']
+    );
+    res.json({ success: true, message: "Teacher added successfully!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Add a New Student
+app.post('/api/admin/students', async (req, res) => {
+  const { roll_no, full_name, parent_phone, dept_code, year_level, section } = req.body;
+  if (!roll_no || !full_name || !dept_code) {
+    return res.status(400).json({ error: "Missing required student fields." });
+  }
+  try {
+    await db.query(
+      "INSERT INTO students (roll_no, full_name, parent_phone, dept_code, year_level, section) VALUES (?, ?, ?, ?, ?, ?)",
+      [roll_no, full_name, parent_phone || '', dept_code, year_level || '1', section || 'A']
+    );
+    res.json({ success: true, message: "Student added successfully!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Smart Attendance</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px; }
+    .stat-card { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); text-align: center; }
+    .stat-card h3 { margin: 0; font-size: 2rem; color: #4CAF50; }
+    .stat-card p { margin: 5px 0 0 0; opacity: 0.8; }
+    .section-box { background: rgba(0, 0, 0, 0.2); padding: 20px; border-radius: 10px; margin-bottom: 25px; }
+    .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .form-row input, .form-row select { padding: 10px; border-radius: 5px; border: 1px solid #ccc; flex: 1; min-width: 150px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; background: #007bff; color: white; font-weight: bold; }
+    .btn-success { background: #28a745; }
+  </style>
+</head>
+<body>
+  <div class="container" style="max-width: 1000px; margin: 40px auto; padding: 20px;">
+    <h2>🛡️ System Administrator Dashboard</h2>
+    <hr><br>
+
+    <!-- Stat Cards -->
+    <div class="admin-grid">
+      <div class="stat-card">
+        <h3 id="stat-students">0</h3>
+        <p>Total Students</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="stat-teachers">0</h3>
+        <p>Total Faculty</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="stat-present" style="color: #28a745;">0</h3>
+        <p>Today's Present</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="stat-absent" style="color: #dc3545;">0</h3>
+        <p>Today's Absent</p>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section-box">
+      <h3>📥 Export Reports</h3>
+      <p>Download complete system attendance data in CSV format.</p>
+      <button class="btn btn-success" onclick="downloadCSV()">Download Attendance CSV</button>
+    </div>
+
+    <!-- Add Teacher Form -->
+    <div class="section-box">
+      <h3>👨‍🏫 Add New Faculty Member</h3>
+      <form id="addTeacherForm" onsubmit="addTeacher(event)">
+        <div class="form-row">
+          <input type="text" id="t_id" placeholder="Teacher ID (e.g., T101)" required>
+          <input type="text" id="t_name" placeholder="Full Name" required>
+          <input type="email" id="t_email" placeholder="Email">
+          <input type="text" id="t_dept" placeholder="Dept Code (e.g., CSE)" required>
+          <button type="submit" class="btn">Add Faculty</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Add Student Form -->
+    <div class="section-box">
+      <h3>👨‍🎓 Add New Student</h3>
+      <form id="addStudentForm" onsubmit="addStudent(event)">
+        <div class="form-row">
+          <input type="text" id="s_roll" placeholder="Roll No (e.g., 21B91A0501)" required>
+          <input type="text" id="s_name" placeholder="Full Name" required>
+          <input type="text" id="s_dept" placeholder="Dept Code (e.g., CSE)" required>
+          <input type="text" id="s_phone" placeholder="Parent Phone (+91...)">
+          <button type="submit" class="btn">Add Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
