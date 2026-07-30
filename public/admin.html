@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - SmartAttend</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .admin-nav-tabs { display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; }
+    .tab-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.65rem 1.2rem; border-radius: 12px; color: #fff; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .tab-btn.active { background: #4f46e5; border-color: #4f46e5; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="logo"><span>SmartAttend Admin</span></div>
+    <div class="nav-actions">
+      <button id="adminLogoutBtn" class="btn btn-danger hidden"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+    </div>
+  </header>
+
+  <!-- LOGIN SECTION -->
+  <section id="adminLoginSection" class="lms-login-wrapper">
+    <div class="lms-login-card">
+      <h2>ADMIN LOGIN</h2>
+      <div class="lms-input-box" style="margin-bottom:1rem;"><input type="text" id="adminId" placeholder="Admin ID / Email" value="ADMIN01"></div>
+      <div class="lms-input-box" style="margin-bottom:1rem;"><input type="password" id="adminPassword" placeholder="Password" value="admin123"></div>
+      <button id="adminLoginBtn" class="btn btn-primary" style="width:100%;">LOGIN</button>
+    </div>
+  </section>
+
+  <!-- ADMIN DASHBOARD -->
+  <main id="adminDashboardSection" class="dashboard-container hidden" style="padding:2rem;">
+
+    <div class="admin-nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('overview')"><i class="fa-solid fa-chart-pie"></i> Overview</button>
+      <button class="tab-btn" onclick="switchTab('users')"><i class="fa-solid fa-users"></i> Faculty</button>
+      <button class="tab-btn" onclick="switchTab('classes')"><i class="fa-solid fa-school"></i> Classes</button>
+      <button class="tab-btn" onclick="switchTab('attendance')"><i class="fa-solid fa-file-invoice"></i> Reports</button>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <section id="tab-overview" class="tab-content active">
+      <div class="summary-stats" style="display:flex; gap:1rem;">
+        <div class="stat-box"><h4>Total Students</h4><span id="statStudents">0</span></div>
+        <div class="stat-box"><h4>Total Faculty</h4><span id="statTeachers">0</span></div>
+        <div class="stat-box"><h4>Total Classes</h4><span id="statClasses">0</span></div>
+        <div class="stat-box"><h4>Today Present</h4><span id="statPresent">0</span></div>
+        <div class="stat-box"><h4>Today Absent</h4><span id="statAbsent">0</span></div>
+      </div>
+    </section>
+
+    <!-- FACULTY MANAGEMENT TAB -->
+    <section id="tab-users" class="tab-content">
+      <div class="card" style="margin-bottom:1.5rem;">
+        <h3>Register Faculty</h3>
+        <div style="display:flex; gap:0.5rem; margin-top:1rem; flex-wrap:wrap;">
+          <input type="text" id="facId" placeholder="ID (FAC103)">
+          <input type="text" id="facName" placeholder="Full Name">
+          <input type="email" id="facEmail" placeholder="Email">
+          <input type="text" id="facDept" placeholder="Dept (MCA)">
+          <input type="password" id="facPass" placeholder="Password">
+          <button id="addTeacherBtn" class="btn btn-primary">Add Faculty</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <h3>Faculty Register</h3>
+        <table>
+          <thead>
+            <tr><th>Faculty ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Action</th></tr>
+          </thead>
+          <tbody id="teacherTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CLASS MANAGEMENT TAB -->
+    <section id="tab-classes" class="tab-content">
+      <div class="card" style="margin-bottom:1.5rem;">
+        <h3>Add Department Class</h3>
+        <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+          <input type="text" id="clsDept" placeholder="Dept (e.g. MCA)">
+          <input type="text" id="clsYear" placeholder="Year (e.g. 1st Year)">
+          <input type="text" id="clsSec" placeholder="Section (e.g. Sec A)">
+          <button id="addClassBtn" class="btn btn-primary">Create Class</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <h3>Classes Register</h3>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Department</th><th>Year Level</th><th>Section</th></tr>
+          </thead>
+          <tbody id="classTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ATTENDANCE REPORT TAB -->
+    <section id="tab-attendance" class="tab-content">
+      <div class="card" style="margin-bottom:1.5rem;">
+        <h3>Filter Attendance Register</h3>
+        <div style="display:flex; gap:0.5rem; margin-top:1rem; flex-wrap:wrap;">
+          <input type="text" id="repDept" placeholder="Dept (MCA)">
+          <input type="date" id="repDate">
+          <button id="fetchReportBtn" class="btn btn-primary">View Report</button>
+          <button id="exportCsvBtn" class="btn btn-secondary">Export CSV</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Hour</th><th>Dept</th><th>Roll No</th><th>Student Name</th><th>Status</th><th>Faculty ID</th></tr>
+          </thead>
+          <tbody id="reportTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

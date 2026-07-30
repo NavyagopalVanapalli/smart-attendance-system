@@ -388,3 +388,172 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
 });
+
+
+const express = require('express');
+const mysql = require('mysql2');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// DATABASE CONNECTION
+const db = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: 'your_mysql_password', // Replace with your MySQL password
+  database: 'defaultdb'
+});
+
+db.connect((err) => {
+  if (err) throw err;
+  console.log('Connected to MySQL Database: defaultdb');
+});
+
+// ==========================================
+// ADMIN DASHBOARD ROUTES
+// ==========================================
+
+// 1. ADMIN LOGIN
+app.post('/api/admin/login', (req, res) => {
+  const { adminId, password } = req.body;
+  const sql = 'SELECT admin_id, full_name, email FROM admins WHERE (admin_id = ? OR email = ?) AND password_hash = ?';
+  
+  db.query(sql, [adminId, adminId, password], (err, results) => {
+    if (err) return res.status(500).json({ success: false, error: err.message });
+    if (results.length > 0) {
+      res.json({ success: true, admin: results[0] });
+    } else {
+      res.status(401).json({ success: false, message: 'Invalid Admin Credentials!' });
+    }
+  });
+});
+
+// 2. GET ALL TEACHERS
+app.get('/api/admin/teachers', (req, res) => {
+  db.query('SELECT teacher_id, full_name, email, dept_code, created_at FROM teachers', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// 3. ADD TEACHER
+app.post('/api/admin/teachers/add', (req, res) => {
+  const { teacher_id, full_name, email, dept_code, password } = req.body;
+  if (!teacher_id || !full_name || !email || !dept_code || !password) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  const sql = 'INSERT INTO teachers (teacher_id, full_name, email, password_hash, dept_code) VALUES (?, ?, ?, ?, ?)';
+  db.query(sql, [teacher_id, full_name, email, password, dept_code], (err) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    res.json({ success: true, message: 'Teacher added successfully!' });
+  });
+});
+
+// 4. DELETE TEACHER
+app.delete('/api/admin/teachers/delete', (req, res) => {
+  const { teacher_id } = req.query;
+  db.query('DELETE FROM teachers WHERE teacher_id = ?', [teacher_id], (err) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    res.json({ success: true, message: 'Teacher deleted successfully!' });
+  });
+});
+
+// 5. GET ALL CLASSES
+app.get('/api/admin/classes', (req, res) => {
+  db.query('SELECT * FROM classes ORDER BY dept_code, year_level, section', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// 6. ADD CLASS
+app.post('/api/admin/classes/add', (req, res) => {
+  const { dept_code, year_level, section } = req.body;
+  const sql = 'INSERT INTO classes (dept_code, year_level, section) VALUES (?, ?, ?)';
+  db.query(sql, [dept_code, year_level, section], (err) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    res.json({ success: true, message: 'Class registered successfully!' });
+  });
+});
+
+// 7. COMPREHENSIVE ATTENDANCE REPORT
+app.get('/api/admin/reports/attendance', (req, res) => {
+  const { dept, date, startDate, endDate } = req.query;
+
+  let query = `
+    SELECT 
+      a.date, 
+      a.hour, 
+      a.dept_code, 
+      a.roll_no, 
+      s.full_name AS student_name, 
+      a.status, 
+      a.teacher_id, 
+      t.full_name AS teacher_name
+    FROM attendance a
+    JOIN students s ON a.roll_no = s.roll_no AND a.dept_code = s.dept_code
+    JOIN teachers t ON a.teacher_id = t.teacher_id
+    WHERE 1=1
+  `;
+
+  const params = [];
+
+  if (dept) {
+    query += ` AND a.dept_code = ?`;
+    params.push(dept);
+  }
+  if (date) {
+    query += ` AND a.date = ?`;
+    params.push(date);
+  } else if (startDate && endDate) {
+    query += ` AND a.date BETWEEN ? AND ?`;
+    params.push(startDate, endDate);
+  }
+
+  query += ` ORDER BY a.date DESC, a.hour ASC`;
+
+  db.query(query, params, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// 8. METRICS OVERVIEW SUMMARY
+app.get('/api/admin/reports/summary', (req, res) => {
+  const stats = {};
+
+  db.query('SELECT COUNT(*) AS totalStudents FROM students', (err, r1) => {
+    stats.totalStudents = r1[0].totalStudents;
+    db.query('SELECT COUNT(*) AS totalTeachers FROM teachers', (err, r2) => {
+      stats.totalTeachers = r2[0].totalTeachers;
+      db.query('SELECT COUNT(*) AS totalClasses FROM classes', (err, r3) => {
+        stats.totalClasses = r3[0].totalClasses;
+        db.query('SELECT status, COUNT(*) as count FROM attendance WHERE date = CURDATE() GROUP BY status', (err, r4) => {
+          stats.todayPresent = 0;
+          stats.todayAbsent = 0;
+          r4.forEach(row => {
+            if (row.status === 'Present') stats.todayPresent = row.count;
+            if (row.status === 'Absent') stats.todayAbsent = row.count;
+          });
+          res.json(stats);
+        });
+      });
+    });
+  });
+});
+
+// ROUTE TO SERVE ADMIN FRONTEND
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
