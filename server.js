@@ -288,7 +288,7 @@ app.post('/api/qr/verify-student', (req, res) => {
     parseFloat(studentLng)
   );
 
-  const MAX_RADIUS_METERS = 500000; 
+  const MAX_RADIUS_METERS = 500; 
 
   if (distance > MAX_RADIUS_METERS) {
     return res.status(403).json({ 
