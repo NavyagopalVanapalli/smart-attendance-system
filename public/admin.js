@@ -1,6 +1,6 @@
 const API_BASE_URL = `${window.location.origin}/api`;
 
-function switchTab(tabName) {
+function switchTab(event, tabName) {
   document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
   document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
 
@@ -20,18 +20,27 @@ document.addEventListener("DOMContentLoaded", () => {
       const adminId = document.getElementById("adminId").value.trim();
       const password = document.getElementById("adminPassword").value.trim();
 
-      const res = await fetch(`${API_BASE_URL}/admin/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminId, password })
-      });
+      if (!adminId || !password) {
+        alert("Please enter ID and Password");
+        return;
+      }
 
-      const data = await res.json();
-      if (data.success) {
-        sessionStorage.setItem("activeAdmin", JSON.stringify(data.admin));
-        loadDashboard();
-      } else {
-        alert(data.message);
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adminId, password })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          sessionStorage.setItem("activeAdmin", JSON.stringify(data.admin));
+          loadDashboard();
+        } else {
+          alert(data.message);
+        }
+      } catch (err) {
+        alert("Could not connect to the backend server.");
       }
     });
   }
@@ -54,19 +63,23 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchClasses();
   }
 
-  // OVERVIEW STATS
+  // OVERVIEW SUMMARY METRICS
   async function fetchSummary() {
-    const res = await fetch(`${API_BASE_URL}/admin/reports/summary`);
-    const data = await res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/reports/summary`);
+      const data = await res.json();
 
-    document.getElementById("statStudents").textContent = data.totalStudents || 0;
-    document.getElementById("statTeachers").textContent = data.totalTeachers || 0;
-    document.getElementById("statClasses").textContent = data.totalClasses || 0;
-    document.getElementById("statPresent").textContent = data.todayPresent || 0;
-    document.getElementById("statAbsent").textContent = data.todayAbsent || 0;
+      document.getElementById("statStudents").textContent = data.totalStudents || 0;
+      document.getElementById("statTeachers").textContent = data.totalTeachers || 0;
+      document.getElementById("statClasses").textContent = data.totalClasses || 0;
+      document.getElementById("statPresent").textContent = data.todayPresent || 0;
+      document.getElementById("statAbsent").textContent = data.todayAbsent || 0;
+    } catch (err) {
+      console.error("Error loading summary statistics:", err);
+    }
   }
 
-  // FETCH TEACHERS
+  // TEACHERS
   async function fetchTeachers() {
     const res = await fetch(`${API_BASE_URL}/admin/teachers`);
     const teachers = await res.json();
@@ -82,14 +95,13 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${t.email}</td>
           <td>${t.dept_code}</td>
           <td>
-            <button onclick="deleteTeacher('${t.teacher_id}')" class="btn btn-danger" style="padding: 2px 6px;">Delete</button>
+            <button onclick="deleteTeacher('${t.teacher_id}')" class="btn btn-danger" style="padding: 2px 8px;">Delete</button>
           </td>
         </tr>
       `;
     });
   }
 
-  // ADD TEACHER
   document.getElementById("addTeacherBtn").addEventListener("click", async () => {
     const teacher_id = document.getElementById("facId").value.trim();
     const full_name = document.getElementById("facName").value.trim();
@@ -113,13 +125,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   window.deleteTeacher = async (id) => {
-    if (confirm(`Delete Faculty ${id}?`)) {
+    if (confirm(`Delete Faculty ID ${id}?`)) {
       await fetch(`${API_BASE_URL}/admin/teachers/delete?teacher_id=${id}`, { method: "DELETE" });
       fetchTeachers();
     }
   };
 
-  // CLASSES MANAGEMENT
+  // CLASSES
   async function fetchClasses() {
     const res = await fetch(`${API_BASE_URL}/admin/classes`);
     const classes = await res.json();
@@ -152,14 +164,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const data = await res.json();
     if (data.success) {
-      alert("Class Created!");
+      alert("Class Added!");
       fetchClasses();
     } else {
       alert(data.message);
     }
   });
 
-  // REPORTS & CSV EXPORT
+  // REPORTS & EXPORT
   let currentReportData = [];
 
   document.getElementById("fetchReportBtn").addEventListener("click", async () => {
@@ -180,7 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${r.dept_code}</td>
           <td>${r.roll_no}</td>
           <td>${r.student_name}</td>
-          <td>${r.status}</td>
+          <td style="color: ${r.status === 'Present' ? '#10b981' : '#ef4444'}; font-weight: 600;">${r.status}</td>
           <td>${r.teacher_id}</td>
         </tr>
       `;
@@ -188,9 +200,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("exportCsvBtn").addEventListener("click", () => {
-    if (currentReportData.length === 0) return alert("No report loaded!");
+    if (currentReportData.length === 0) return alert("No report data loaded to export!");
 
-    let csv = "Date,Hour,Dept,Roll No,Student Name,Status,Teacher ID\n";
+    let csv = "Date,Hour,Department,Roll No,Student Name,Status,Teacher ID\n";
     currentReportData.forEach(r => {
       csv += `"${r.date}","${r.hour}","${r.dept_code}","${r.roll_no}","${r.student_name}","${r.status}","${r.teacher_id}"\n`;
     });
