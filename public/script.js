@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
     themeToggleBtn.textContent = "☀️ Light Mode";
   }
 
-
   const API_BASE_URL = `${window.location.origin}/api`;
   const dateInput = document.getElementById("attendanceDate");
   if (dateInput) dateInput.valueAsDate = new Date();
@@ -44,12 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const secSelect = document.getElementById("sectionSelect");
   const hourSelect = document.getElementById("hourSelect");
 
-  // Changed to sessionStorage to isolate teacher identity per tab
   function getActiveTeacher() {
     return JSON.parse(sessionStorage.getItem("activeTeacher")) || null;
   }
 
-  // Changed to sessionStorage to isolate active UI filters per tab
   function saveFilterState() {
     const filters = {
       dept: deptSelect ? deptSelect.value : "",
@@ -83,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (logoutBtn) logoutBtn.classList.remove("hidden");
     if (changePasswordBtn) changePasswordBtn.classList.remove("hidden");
 
-    // Display Faculty Name and ID on Dashboard Header
     const facultyInfoDisplay = document.getElementById("facultyInfoDisplay");
     const teacherName = teacher.teacher_name || teacher.full_name || "Faculty";
     const teacherId = teacher.teacher_id || "N/A";
@@ -95,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!teacherBadge) {
         teacherBadge = document.createElement("div");
         teacherBadge.id = "teacherProfileBadge";
-        teacherBadge.style.cssText = "padding: 8px 16px; background: rgba(99, 102, 241, 0.15); border-radius: 8px; font-weight: 600; color: var(--text-color, #333); margin-bottom: 12px;";
+        teacherBadge.style.cssText = "padding: 8px 16px; background: rgba(99, 102, 241, 0.15); border-radius: 8px; font-weight: 600; color: var(--text-main); margin-bottom: 12px;";
         const dashboardHeader = dashboardSection.querySelector(".dashboard-header") || dashboardSection;
         dashboardHeader.prepend(teacherBadge);
       }
@@ -106,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderStudentTable();
   }
 
-  // Scoped key strictly isolated by Faculty ID + Session Details
   function getScopedKey(rollNo) {
     const activeTeacher = getActiveTeacher();
     const teacherId = activeTeacher ? activeTeacher.teacher_id : "guest";
@@ -163,11 +158,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!tableBody) return;
 
     try {
-      // 1. Fetch Students
       const response = await fetch(`${API_BASE_URL}/students?dept=${dept}&year=${year}&section=${sec}`);
       const students = await response.json();
 
-      // 2. Fetch Live/Saved Attendance filtered by current Teacher ID
       const liveRes = await fetch(`${API_BASE_URL}/attendance/live?dept=${encodeURIComponent(dept)}&hour=${encodeURIComponent(rawHour)}&date=${encodeURIComponent(date)}&teacherId=${encodeURIComponent(teacherId)}`);
       const dbRecords = liveRes.ok ? await liveRes.json() : [];
       const presentRollsInDb = new Set(dbRecords.map(r => r.roll_no));
@@ -175,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tableBody.innerHTML = "";
 
       if (!students || students.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted, #888);">No students found for this section.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No students found for this section.</td></tr>`;
         updateSummary();
         return;
       }
@@ -210,10 +203,10 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
           <td><span class="status-pill ${pillClass}">${smsStatus}</span></td>
           <td style="text-align: center; display: flex; gap: 8px; justify-content: center; align-items: center;">
-            <button class="whatsapp-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" data-phone="${student.parent_phone}" title="Send WhatsApp to Parent" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; display: ${isChecked ? 'none' : 'inline-block'};">
+            <button class="whatsapp-btn btn-secondary" data-roll="${student.roll_no}" data-name="${student.full_name}" data-phone="${student.parent_phone}" title="Send WhatsApp to Parent" style="padding: 4px 10px; font-size: 0.8rem; display: ${isChecked ? 'none' : 'inline-flex'}; border-color: #25D366; color: #25D366;">
               💬 WhatsApp
             </button>
-            <button class="delete-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" title="Delete Student" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem;">
+            <button class="delete-btn" data-roll="${student.roll_no}" data-name="${student.full_name}" title="Delete Student" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.1rem;">
               🗑️
             </button>
           </td>
@@ -235,7 +228,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function startLivePolling(dept, hour, date, teacherId) {
     if (!dept || !hour || !date || !teacherId) return;
-
     if (pollingInterval) clearInterval(pollingInterval);
 
     pollingInterval = setInterval(async () => {
@@ -349,7 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
         : smsStatus === "Send Failed" ? "status-pill pill-failed"
         : "status-pill pill-neutral";
 
-      if (whatsappBtn) whatsappBtn.style.display = "inline-block";
+      if (whatsappBtn) whatsappBtn.style.display = "inline-flex";
     }
 
     saveCurrentStateToMemory();
@@ -401,7 +393,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (totalEl) totalEl.textContent = presentCount + absentCount;
 
     if (absentList && absentCount === 0) {
-      absentList.innerHTML = '<li class="empty-msg">No students marked absent yet.</li>';
+      absentList.innerHTML = '<li class="empty-msg" style="color: var(--text-muted);">No students marked absent yet.</li>';
     }
   }
 
@@ -429,7 +421,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json();
 
         if (data.success) {
-          // Save active session to sessionStorage so tabs do not conflict
           sessionStorage.setItem("activeTeacher", JSON.stringify(data.teacher));
           if (passwordInput) passwordInput.value = "";
           showDashboard(data.teacher);
@@ -754,7 +745,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Restore session scoped to current tab
   const activeTeacher = getActiveTeacher();
   if (activeTeacher) {
     showDashboard(activeTeacher);

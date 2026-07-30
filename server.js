@@ -146,7 +146,7 @@ app.get('/api/students', (req, res) => {
   });
 });
 
-// GET REAL-TIME ATTENDANCE STATUS FOR A SPECIFIC FACULTY, HOUR, DEPT & DATE
+// GET REAL-TIME ATTENDANCE STATUS
 app.get('/api/attendance/live', (req, res) => {
   const { dept, hour, date, teacherId } = req.query;
 
@@ -160,7 +160,6 @@ app.get('/api/attendance/live', (req, res) => {
   `;
   const params = [dept, hour, date];
 
-  // Strictly isolate query by faculty ID if passed
   if (teacherId) {
     query += ` AND teacher_id = ?`;
     params.push(teacherId);
@@ -202,7 +201,7 @@ app.post('/api/students/add', (req, res) => {
   });
 });
 
-// SAVE ATTENDANCE RECORD (UPSERT WITH DEPT MATCHING)
+// SAVE ATTENDANCE RECORD
 app.post('/api/attendance/submit', (req, res) => {
   const { date, hour, teacherId, dept, records } = req.body;
 
@@ -268,7 +267,7 @@ app.post('/api/qr/generate-location', (req, res) => {
   });
 });
 
-// STUDENT QR ATTENDANCE VERIFICATION & RECORDING
+// STUDENT QR ATTENDANCE VERIFICATION
 app.post('/api/qr/verify-student', (req, res) => {
   const { rollNo, studentLat, studentLng, sessionId } = req.body;
 
