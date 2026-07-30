@@ -12,7 +12,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // DATABASE CONNECTION
 // ==========================================
 const db = mysql.createConnection({
-  host: 'localhost',
+  host: '127.0.0.1',
   user: 'root',
   password: 'Haveaniceday@1', // ⚠️ Replace with your actual MySQL Workbench password
   database: 'defaultdb'
@@ -247,7 +247,7 @@ app.get('/', (req, res) => {
 });
 
 // START SERVER
-const PORT = 3000;
+const PORT = 3307;
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`🔑 Admin Panel at http://localhost:${PORT}/admin`);
