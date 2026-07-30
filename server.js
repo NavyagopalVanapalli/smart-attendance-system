@@ -49,6 +49,8 @@ async function sendWhatsAppMessage(phoneNumber, message) {
 }
 
 // MYSQL CONNECTION
+
+
 const db = mysql.createConnection({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,
@@ -56,7 +58,7 @@ const db = mysql.createConnection({
   password: process.env.DB_PASSWORD || 'Haveaniceday@1', 
   database: process.env.DB_NAME || 'defaultdb',
   ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
-});
+}).promise(); // <-- .promise() enables async/await support
 
 db.connect((err) => {
   if (err) {
