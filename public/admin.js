@@ -64,6 +64,7 @@ async function addTeacher(e) {
 }
 
 // Render Teachers Table
+// Render Teachers Table
 async function loadTeachersTable() {
   try {
     const res = await fetch('/api/admin/teachers-list');
@@ -78,8 +79,9 @@ async function loadTeachersTable() {
         <td>${t.email || '-'}</td>
         <td>${t.dept_code}</td>
         <td>
-          <button onclick="editTeacher('${t.teacher_id}', '${escapeQuotes(t.full_name)}', '${escapeQuotes(t.email)}', '${t.dept_code}')" class="btn" style="padding:4px 8px; font-size:0.8rem;">✏️ Edit</button>
-          <button onclick="deleteTeacher('${t.teacher_id}')" class="btn" style="padding:4px 8px; font-size:0.8rem; background:#dc3545; color:white;">🗑️ Delete</button>
+          <!-- PLACE HERE FOR TEACHERS -->
+          <button onclick="editTeacher('${t.teacher_id}', '${escapeQuotes(t.full_name)}', '${escapeQuotes(t.email)}', '${t.dept_code}')" class="btn">✏️ Edit</button>
+          <button onclick="deleteTeacher('${t.teacher_id}')" class="btn btn-danger">🗑️ Delete</button>
         </td>
       </tr>
     `).join('');
@@ -87,6 +89,7 @@ async function loadTeachersTable() {
     console.error("Error loading teachers:", err);
   }
 }
+
 
 // Edit Faculty Action
 async function editTeacher(teacher_id, oldName, oldEmail, oldDept) {
@@ -174,6 +177,7 @@ async function addStudent(e) {
 }
 
 // Render Students Table
+// Render Students Table
 async function loadStudentsTable() {
   try {
     const res = await fetch('/api/admin/students-list');
@@ -190,8 +194,9 @@ async function loadStudentsTable() {
         <td>${s.year_level}</td>
         <td>${s.section}</td>
         <td>
-          <button onclick="editStudent('${s.roll_no}', '${escapeQuotes(s.full_name)}', '${s.parent_phone}', '${s.dept_code}', '${s.year_level}', '${s.section}')" class="btn" style="padding:4px 8px; font-size:0.8rem;">✏️ Edit</button>
-          <button onclick="deleteStudent('${s.roll_no}', '${s.dept_code}')" class="btn" style="padding:4px 8px; font-size:0.8rem; background:#dc3545; color:white;">🗑️ Delete</button>
+          <!-- PLACE HERE FOR STUDENTS -->
+          <button onclick="editStudent('${s.roll_no}', '${escapeQuotes(s.full_name)}', '${s.parent_phone}', '${s.dept_code}', '${s.year_level}', '${s.section}')" class="btn">✏️ Edit</button>
+          <button onclick="deleteStudent('${s.roll_no}', '${s.dept_code}')" class="btn btn-danger">🗑️ Delete</button>
         </td>
       </tr>
     `).join('');
