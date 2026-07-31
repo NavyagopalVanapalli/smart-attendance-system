@@ -1,11 +1,13 @@
 require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise'); // 1. Using mysql2/promise directly
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
+
+// Middlewares
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'DELETE', 'PUT', 'OPTIONS'],
@@ -14,6 +16,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Twilio Setup
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM;
@@ -48,25 +51,72 @@ async function sendWhatsAppMessage(phoneNumber, message) {
   }
 }
 
-// MYSQL CONNECTION
-
-
-const db = mysql.createConnection({
+// MYSQL POOL CREATION (Promise-based)
+const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'Haveaniceday@1', 
+  password: process.env.DB_PASSWORD || 'Haveaniceday@1',
   database: process.env.DB_NAME || 'defaultdb',
-  ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
-}).promise(); // <-- .promise() enables async/await support
-
-db.connect((err) => {
-  if (err) {
-    console.error('❌ MySQL Connection Error:', err.message);
-  } else {
-    console.log('✅ Connected to MySQL Database!');
-  }
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost' 
+    ? { rejectUnauthorized: false } 
+    : false
 });
+
+// AUTO-CREATE TABLES ON STARTUP
+async function initDB() {
+  try {
+    const connection = await db.getConnection();
+    console.log("⚡ Connected to MySQL. Ensuring tables exist...");
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS teachers (
+        teacher_id VARCHAR(50) PRIMARY KEY,
+        full_name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        dept_code VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS students (
+        roll_no VARCHAR(50) NOT NULL,
+        full_name VARCHAR(100) NOT NULL,
+        parent_phone VARCHAR(15) NOT NULL,
+        dept_code VARCHAR(20) NOT NULL,
+        year_level VARCHAR(20) NOT NULL,
+        section VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (roll_no, dept_code)
+      );
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS attendance (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        roll_no VARCHAR(50) NOT NULL,
+        dept_code VARCHAR(20) NOT NULL,
+        hour VARCHAR(100) NOT NULL,
+        date DATE NOT NULL,
+        status ENUM('Present', 'Absent') NOT NULL,
+        teacher_id VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_attendance_entry (roll_no, dept_code, hour, date)
+      );
+    `);
+
+    console.log("✅ All database tables verified and ready!");
+    connection.release();
+  } catch (err) {
+    console.error("❌ Database Initialization Error:", err.message);
+  }
+}
+initDB();
 
 // HAVERSINE FORMULA (GPS Distance Calculation)
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
@@ -83,23 +133,27 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// ==================== FACULTY & USER ROUTES ====================
+
 // TEACHER LOGIN API
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { teacherId, password } = req.body;
   const sql = 'SELECT teacher_id, full_name, email, dept_code FROM teachers WHERE teacher_id = ? AND password_hash = ?';
   
-  db.query(sql, [teacherId, password], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const [results] = await db.query(sql, [teacherId, password]);
     if (results.length > 0) {
       res.json({ success: true, teacher: results[0] });
     } else {
       res.status(401).json({ success: false, message: 'Invalid Faculty ID or Password!' });
     }
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // RESET / FORGOT PASSWORD ENDPOINT
-app.post('/api/reset-password', (req, res) => {
+app.post('/api/reset-password', async (req, res) => {
   const { teacherId, newPassword } = req.body;
 
   if (!teacherId || !newPassword) {
@@ -107,49 +161,53 @@ app.post('/api/reset-password', (req, res) => {
   }
 
   const query = 'UPDATE teachers SET password_hash = ? WHERE teacher_id = ?';
-  db.query(query, [newPassword, teacherId], (err, results) => {
-    if (err) return res.status(500).json({ success: false, message: 'Database query failed.' });
-    
+  try {
+    const [results] = await db.query(query, [newPassword, teacherId]);
     if (results.affectedRows > 0) {
       res.json({ success: true, message: 'Password updated successfully!' });
     } else {
       res.json({ success: false, message: 'Faculty ID not found.' });
     }
-  });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Database query failed.' });
+  }
 });
 
 // CHANGE TEACHER PASSWORD API
-app.post('/api/change-password', (req, res) => {
+app.post('/api/change-password', async (req, res) => {
   const { teacherId, currentPassword, newPassword } = req.body;
 
-  const verifySql = 'SELECT * FROM teachers WHERE teacher_id = ? AND password_hash = ?';
-  db.query(verifySql, [teacherId, currentPassword], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const verifySql = 'SELECT * FROM teachers WHERE teacher_id = ? AND password_hash = ?';
+    const [results] = await db.query(verifySql, [teacherId, currentPassword]);
+
     if (results.length === 0) {
       return res.status(400).json({ success: false, message: 'Current password is incorrect!' });
     }
 
     const updateSql = 'UPDATE teachers SET password_hash = ? WHERE teacher_id = ?';
-    db.query(updateSql, [newPassword, teacherId], (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, message: 'Password updated successfully!' });
-    });
-  });
+    await db.query(updateSql, [newPassword, teacherId]);
+    res.json({ success: true, message: 'Password updated successfully!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET STUDENTS BY DEPARTMENT, YEAR, SECTION
-app.get('/api/students', (req, res) => {
+app.get('/api/students', async (req, res) => {
   const { dept, year, section } = req.query;
   const sql = 'SELECT * FROM students WHERE dept_code = ? AND year_level = ? AND section = ?';
   
-  db.query(sql, [dept, year, section], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const [results] = await db.query(sql, [dept, year, section]);
     res.json(results);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET REAL-TIME ATTENDANCE STATUS
-app.get('/api/attendance/live', (req, res) => {
+app.get('/api/attendance/live', async (req, res) => {
   const { dept, hour, date, teacherId } = req.query;
 
   let query = `
@@ -167,26 +225,26 @@ app.get('/api/attendance/live', (req, res) => {
     params.push(teacherId);
   }
 
-  db.query(query, params, (err, results) => {
-    if (err) {
-      console.error("Error fetching live attendance:", err);
-      return res.status(500).json({ error: "Database query failed" });
-    }
+  try {
+    const [results] = await db.query(query, params);
     res.json(results);
-  });
+  } catch (err) {
+    console.error("Error fetching live attendance:", err);
+    res.status(500).json({ error: "Database query failed" });
+  }
 });
 
 // ADD NEW STUDENT API
-app.post('/api/students/add', (req, res) => {
+app.post('/api/students/add', async (req, res) => {
   const { roll_no, full_name, parent_phone, dept_code, year_level, section } = req.body;
 
   if (!roll_no || !full_name || !parent_phone) {
     return res.status(400).json({ success: false, message: "Missing required fields." });
   }
 
-  const checkSql = 'SELECT * FROM students WHERE roll_no = ? AND dept_code = ?';
-  db.query(checkSql, [roll_no, dept_code], (err, results) => {
-    if (err) return res.status(500).json({ success: false, message: err.message });
+  try {
+    const checkSql = 'SELECT * FROM students WHERE roll_no = ? AND dept_code = ?';
+    const [results] = await db.query(checkSql, [roll_no, dept_code]);
 
     if (results.length > 0) {
       return res.status(400).json({ 
@@ -196,15 +254,15 @@ app.post('/api/students/add', (req, res) => {
     }
 
     const insertSql = `INSERT INTO students (roll_no, full_name, parent_phone, dept_code, year_level, section) VALUES (?, ?, ?, ?, ?, ?)`;
-    db.query(insertSql, [roll_no, full_name, parent_phone, dept_code, year_level, section], (err, result) => {
-      if (err) return res.status(500).json({ success: false, message: err.message });
-      res.json({ success: true, message: "Student added successfully!" });
-    });
-  });
+    await db.query(insertSql, [roll_no, full_name, parent_phone, dept_code, year_level, section]);
+    res.json({ success: true, message: "Student added successfully!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // SAVE ATTENDANCE RECORD
-app.post('/api/attendance/submit', (req, res) => {
+app.post('/api/attendance/submit', async (req, res) => {
   const { date, hour, teacherId, dept, records } = req.body;
 
   if (!records || records.length === 0) {
@@ -219,13 +277,13 @@ app.post('/api/attendance/submit', (req, res) => {
   
   const values = records.map(r => [r.roll_no, hour, date, r.status, teacherId, dept]);
 
-  db.query(query, [values], (err, result) => {
-    if (err) {
-      console.error("Database save error:", err);
-      return res.status(500).json({ success: false, message: err.message });
-    }
+  try {
+    await db.query(query, [values]);
     res.json({ success: true, message: "Attendance saved successfully!" });
-  });
+  } catch (err) {
+    console.error("Database save error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // SEND DEDICATED WHATSAPP MESSAGE TO PARENT
@@ -270,7 +328,7 @@ app.post('/api/qr/generate-location', (req, res) => {
 });
 
 // STUDENT QR ATTENDANCE VERIFICATION
-app.post('/api/qr/verify-student', (req, res) => {
+app.post('/api/qr/verify-student', async (req, res) => {
   const { rollNo, studentLat, studentLng, sessionId } = req.body;
 
   const session = activeQrSessions[sessionId];
@@ -299,9 +357,9 @@ app.post('/api/qr/verify-student', (req, res) => {
     });
   }
 
-  const verifyStudentSql = `SELECT full_name FROM students WHERE roll_no = ? AND dept_code = ?`;
-  db.query(verifyStudentSql, [rollNo, session.dept], (err, studentResults) => {
-    if (err) return res.status(500).json({ success: false, message: "Database verification error." });
+  try {
+    const verifyStudentSql = `SELECT full_name FROM students WHERE roll_no = ? AND dept_code = ?`;
+    const [studentResults] = await db.query(verifyStudentSql, [rollNo, session.dept]);
     
     if (studentResults.length === 0) {
       return res.status(400).json({ success: false, message: `Roll No ${rollNo} is not registered in ${session.dept} department!` });
@@ -312,85 +370,40 @@ app.post('/api/qr/verify-student', (req, res) => {
                  VALUES (?, ?, ?, ?, ?, 'Present') 
                  ON DUPLICATE KEY UPDATE status='Present'`;
 
-    db.query(sql, [session.date, session.hour, session.teacherId, rollNo, session.dept], (err, result) => {
-      if (err) {
-        console.error("Database error during QR attendance:", err);
-        return res.status(500).json({ success: false, message: "Database error recording attendance." });
-      }
+    await db.query(sql, [session.date, session.hour, session.teacherId, rollNo, session.dept]);
 
-      res.json({ 
-        success: true, 
-        message: `✅ Attendance marked Present for ${studentName} (${rollNo})!` 
-      });
+    res.json({ 
+      success: true, 
+      message: `✅ Attendance marked Present for ${studentName} (${rollNo})!` 
     });
-  });
+  } catch (err) {
+    console.error("Database error during QR attendance:", err);
+    res.status(500).json({ success: false, message: "Database error recording attendance." });
+  }
 });
 
 // DELETE STUDENT ENDPOINT
-app.delete('/api/students/delete', (req, res) => {
+app.delete('/api/students/delete', async (req, res) => {
   const { roll_no, dept_code } = req.query;
 
   if (!roll_no || !dept_code) {
     return res.status(400).json({ success: false, message: "Missing roll number or department code." });
   }
 
-  const deleteSql = 'DELETE FROM students WHERE roll_no = ? AND dept_code = ?';
-  db.query(deleteSql, [roll_no, dept_code], (err, result) => {
-    if (err) {
-      console.error("Database error during delete:", err);
-      return res.status(500).json({ success: false, message: err.message });
-    }
+  try {
+    const deleteSql = 'DELETE FROM students WHERE roll_no = ? AND dept_code = ?';
+    const [result] = await db.query(deleteSql, [roll_no, dept_code]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Student not found." });
     }
 
     res.json({ success: true, message: "Student deleted successfully!" });
-  });
-});
-
-// ROUTE TO SERVE STUDENT SCANNER PAGE
-const serveStudentPage = (req, res) => {
-  const possiblePaths = [
-    path.join(__dirname, 'student.html'),
-    path.join(__dirname, 'Student.html'),
-    path.join(__dirname, 'public', 'student.html'),
-    path.join(__dirname, 'public', 'Student.html')
-  ];
-
-  for (const filePath of possiblePaths) {
-    if (fs.existsSync(filePath)) {
-      return res.sendFile(filePath);
-    }
+  } catch (err) {
+    console.error("Database error during delete:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
-  res.status(404).send("student.html file missing from server repository.");
-};
-
-app.get('/student', serveStudentPage);
-app.get('/student.html', serveStudentPage);
-app.get('/Student.html', serveStudentPage);
-
-// ROUTE TO SERVE MAIN INDEX PAGE
-app.get('/', (req, res) => {
-  const possibleIndexPaths = [
-    path.join(__dirname, 'index.html'),
-    path.join(__dirname, 'public', 'index.html')
-  ];
-
-  for (const filePath of possibleIndexPaths) {
-    if (fs.existsSync(filePath)) {
-      return res.sendFile(filePath);
-    }
-  }
-  res.status(404).send("index.html missing from server repository.");
 });
-
-// START SERVER
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
-});
-
 
 // ==================== ADMIN API ENDPOINTS ====================
 
@@ -425,14 +438,14 @@ app.get('/api/admin/export-attendance', async (req, res) => {
         a.id, a.date, a.hour, a.roll_no, s.full_name AS student_name, 
         a.dept_code, a.status, a.teacher_id 
       FROM attendance a
-      LEFT JOIN students s ON a.roll_no = s.roll_no
+      LEFT JOIN students s ON a.roll_no = s.roll_no AND a.dept_code = s.dept_code
       ORDER BY a.date DESC, a.hour ASC
     `);
 
-    // Build CSV Header & Rows
     let csvContent = "ID,Date,Hour,Roll No,Student Name,Department,Status,Teacher ID\n";
     rows.forEach(r => {
-      csvContent += `"${r.id}","${r.date.toISOString().split('T')[0]}","${r.hour}","${r.roll_no}","${r.student_name || ''}","${r.dept_code}","${r.status}","${r.teacher_id}"\n`;
+      const formattedDate = r.date ? new Date(r.date).toISOString().split('T')[0] : '';
+      csvContent += `"${r.id}","${formattedDate}","${r.hour}","${r.roll_no}","${r.student_name || ''}","${r.dept_code}","${r.status}","${r.teacher_id}"\n`;
     });
 
     res.setHeader('Content-Type', 'text/csv');
@@ -444,7 +457,6 @@ app.get('/api/admin/export-attendance', async (req, res) => {
 });
 
 // 3. Add a New Teacher
-// Add a New Teacher (Fixed for NOT NULL schema constraints)
 app.post('/api/admin/teachers', async (req, res) => {
   const { teacher_id, full_name, email, dept_code, password_hash } = req.body;
   
@@ -452,19 +464,18 @@ app.post('/api/admin/teachers', async (req, res) => {
     return res.status(400).json({ error: "Missing required teacher fields (ID, Name, or Dept)." });
   }
 
-  // Provide fallback defaults so MySQL NOT NULL checks don't fail
   const teacherEmail = email && email.trim() !== '' 
-    ? email 
+    ? email.trim() 
     : `${teacher_id.toLowerCase()}@college.edu`;
     
   const teacherPassword = password_hash && password_hash.trim() !== '' 
-    ? password_hash 
-    : 'admin123'; // Default temporary password
+    ? password_hash.trim() 
+    : 'admin123';
 
   try {
     await db.query(
       "INSERT INTO teachers (teacher_id, full_name, email, dept_code, password_hash) VALUES (?, ?, ?, ?, ?)",
-      [teacher_id, full_name, teacherEmail, dept_code, teacherPassword]
+      [teacher_id.trim(), full_name.trim(), teacherEmail, dept_code.trim(), teacherPassword]
     );
     res.json({ success: true, message: "Faculty added successfully!" });
   } catch (err) {
@@ -482,7 +493,14 @@ app.post('/api/admin/students', async (req, res) => {
   try {
     await db.query(
       "INSERT INTO students (roll_no, full_name, parent_phone, dept_code, year_level, section) VALUES (?, ?, ?, ?, ?, ?)",
-      [roll_no, full_name, parent_phone || '', dept_code, year_level || '1', section || 'A']
+      [
+        roll_no.trim(),
+        full_name.trim(),
+        parent_phone ? parent_phone.trim() : '0000000000',
+        dept_code.trim(),
+        year_level ? year_level.trim() : '1st Year',
+        section ? section.trim() : 'Sec A'
+      ]
     );
     res.json({ success: true, message: "Student added successfully!" });
   } catch (err) {
@@ -490,11 +508,58 @@ app.post('/api/admin/students', async (req, res) => {
   }
 });
 
-app.get('/api/test-db', async (req, res) => {
+// DIAGNOSTIC ROUTE
+app.get('/api/debug-db', async (req, res) => {
   try {
+    const [dbName] = await db.query("SELECT DATABASE() as current_db");
     const [tables] = await db.query("SHOW TABLES");
-    res.json({ tables });
+    res.json({
+      connected_database: dbName[0].current_db,
+      tables_found_by_node: tables.map(t => Object.values(t)[0])
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ==================== STATIC FILE SERVING ====================
+
+const serveStudentPage = (req, res) => {
+  const possiblePaths = [
+    path.join(__dirname, 'student.html'),
+    path.join(__dirname, 'Student.html'),
+    path.join(__dirname, 'public', 'student.html'),
+    path.join(__dirname, 'public', 'Student.html')
+  ];
+
+  for (const filePath of possiblePaths) {
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+  res.status(404).send("student.html file missing from server repository.");
+};
+
+app.get('/student', serveStudentPage);
+app.get('/student.html', serveStudentPage);
+app.get('/Student.html', serveStudentPage);
+
+app.get('/', (req, res) => {
+  const possibleIndexPaths = [
+    path.join(__dirname, 'index.html'),
+    path.join(__dirname, 'public', 'index.html')
+  ];
+
+  for (const filePath of possibleIndexPaths) {
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+  res.status(404).send("index.html missing from server repository.");
+});
+
+// ==================== START SERVER ====================
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
 });
