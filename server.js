@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql2/promise'); // 1. Using mysql2/promise directly
+const mysql = require('mysql2/promise');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -72,6 +72,28 @@ async function initDB() {
     const connection = await db.getConnection();
     console.log("⚡ Connected to MySQL. Ensuring tables exist...");
 
+    // 1. ADMINS TABLE
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS admins (
+        admin_id VARCHAR(50) PRIMARY KEY,
+        full_name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create default admin if table is empty
+    const [existingAdmins] = await connection.query('SELECT * FROM admins LIMIT 1');
+    if (existingAdmins.length === 0) {
+      await connection.query(`
+        INSERT INTO admins (admin_id, full_name, email, password_hash) 
+        VALUES ('admin', 'System Administrator', 'admin@college.edu', 'admin123');
+      `);
+      console.log("✅ Default admin account created (User: admin / Pass: admin123)");
+    }
+
+    // 2. TEACHERS TABLE
     await connection.query(`
       CREATE TABLE IF NOT EXISTS teachers (
         teacher_id VARCHAR(50) PRIMARY KEY,
@@ -83,6 +105,7 @@ async function initDB() {
       );
     `);
 
+    // 3. STUDENTS TABLE
     await connection.query(`
       CREATE TABLE IF NOT EXISTS students (
         roll_no VARCHAR(50) NOT NULL,
@@ -96,6 +119,7 @@ async function initDB() {
       );
     `);
 
+    // 4. ATTENDANCE TABLE
     await connection.query(`
       CREATE TABLE IF NOT EXISTS attendance (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -132,6 +156,30 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
+
+// ==================== ADMIN AUTHENTICATION ====================
+
+// ADMIN LOGIN API
+app.post('/api/admin/login', async (req, res) => {
+  const { adminId, password } = req.body;
+
+  if (!adminId || !password) {
+    return res.status(400).json({ success: false, message: 'Admin ID and Password are required.' });
+  }
+
+  const sql = 'SELECT admin_id, full_name, email FROM admins WHERE (admin_id = ? OR email = ?) AND password_hash = ?';
+  
+  try {
+    const [results] = await db.query(sql, [adminId.trim(), adminId.trim(), password.trim()]);
+    if (results.length > 0) {
+      res.json({ success: true, admin: results[0] });
+    } else {
+      res.status(401).json({ success: false, message: 'Invalid Admin Credentials!' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ==================== FACULTY & USER ROUTES ====================
 
@@ -410,24 +458,19 @@ app.delete('/api/students/delete', async (req, res) => {
 // 1. Get High-Level Dashboard Statistics
 app.get('/api/admin/stats', async (req, res) => {
   try {
-    // 1. Get total students (using COUNT(*) so primary key column name doesn't matter)
     const [[studentsCount]] = await db.query("SELECT COUNT(*) AS totalStudents FROM students");
-
-    // 2. Get total faculty
     const [[teachersCount]] = await db.query("SELECT COUNT(*) AS totalTeachers FROM teachers");
 
-    // 3. Get today's attendance stats (if attendance table exists)
     const today = new Date().toISOString().split('T')[0];
     let presentCount = 0;
     let absentCount = 0;
 
     try {
-      const [[p]] = await db.query("SELECT COUNT(*) AS total FROM attendance WHERE status = 'PRESENT' AND DATE(marked_at) = ?", [today]);
-      const [[a]] = await db.query("SELECT COUNT(*) AS total FROM attendance WHERE status = 'ABSENT' AND DATE(marked_at) = ?", [today]);
+      const [[p]] = await db.query("SELECT COUNT(*) AS total FROM attendance WHERE status = 'Present' AND DATE(date) = ?", [today]);
+      const [[a]] = await db.query("SELECT COUNT(*) AS total FROM attendance WHERE status = 'Absent' AND DATE(date) = ?", [today]);
       presentCount = p.total || 0;
       absentCount = a.total || 0;
     } catch (attErr) {
-      // Fallback if attendance records aren't generated yet for today
       presentCount = 0;
       absentCount = 0;
     }
@@ -523,6 +566,97 @@ app.post('/api/admin/students', async (req, res) => {
   }
 });
 
+// Get All Faculty Members
+app.get('/api/admin/teachers-list', async (req, res) => {
+  try {
+    const [teachers] = await db.query("SELECT teacher_id, full_name, email, dept_code, created_at FROM teachers ORDER BY created_at DESC");
+    res.json(teachers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get All Students
+app.get('/api/admin/students-list', async (req, res) => {
+  try {
+    const [students] = await db.query("SELECT roll_no, full_name, parent_phone, dept_code, year_level, section FROM students ORDER BY created_at DESC");
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE FACULTY / TEACHER
+app.put('/api/admin/teachers/update', async (req, res) => {
+  const { teacher_id, full_name, email, dept_code } = req.body;
+  if (!teacher_id || !full_name || !dept_code) {
+    return res.status(400).json({ success: false, message: "Teacher ID, Name, and Department are required." });
+  }
+
+  try {
+    const updateSql = `UPDATE teachers SET full_name = ?, email = ?, dept_code = ? WHERE teacher_id = ?`;
+    const [result] = await db.query(updateSql, [full_name.trim(), email.trim(), dept_code.trim(), teacher_id.trim()]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Faculty member not found." });
+    }
+    res.json({ success: true, message: "Faculty updated successfully!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE FACULTY / TEACHER
+app.delete('/api/admin/teachers/delete', async (req, res) => {
+  const { teacher_id } = req.query;
+  if (!teacher_id) {
+    return res.status(400).json({ success: false, message: "Missing Teacher ID." });
+  }
+
+  try {
+    const deleteSql = 'DELETE FROM teachers WHERE teacher_id = ?';
+    const [result] = await db.query(deleteSql, [teacher_id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Faculty member not found." });
+    }
+    res.json({ success: true, message: "Faculty deleted successfully!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// UPDATE STUDENT
+app.put('/api/admin/students/update', async (req, res) => {
+  const { roll_no, full_name, parent_phone, dept_code, year_level, section } = req.body;
+  if (!roll_no || !full_name || !dept_code) {
+    return res.status(400).json({ success: false, message: "Roll No, Name, and Dept are required." });
+  }
+
+  try {
+    const updateSql = `
+      UPDATE students 
+      SET full_name = ?, parent_phone = ?, year_level = ?, section = ? 
+      WHERE roll_no = ? AND dept_code = ?
+    `;
+    const [result] = await db.query(updateSql, [
+      full_name.trim(),
+      parent_phone ? parent_phone.trim() : '0000000000',
+      year_level ? year_level.trim() : '1st Year',
+      section ? section.trim() : 'Sec A',
+      roll_no.trim(),
+      dept_code.trim()
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Student record not found." });
+    }
+    res.json({ success: true, message: "Student updated successfully!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // DIAGNOSTIC ROUTE
 app.get('/api/debug-db', async (req, res) => {
   try {
@@ -561,8 +695,8 @@ app.get('/Student.html', serveStudentPage);
 
 app.get('/', (req, res) => {
   const possibleIndexPaths = [
-    path.join(__dirname, 'admin.html'),
-    path.join(__dirname, 'public', 'admin.html')
+    path.join(__dirname, 'index.html'),
+    path.join(__dirname, 'public', 'index.html')
   ];
 
   for (const filePath of possibleIndexPaths) {
@@ -570,106 +704,11 @@ app.get('/', (req, res) => {
       return res.sendFile(filePath);
     }
   }
-  res.status(404).send("admin.html missing from server repository.");
+  res.status(404).send("index.html missing from server repository.");
 });
 
 // ==================== START SERVER ====================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
-});
-
-
-// Get All Faculty Members
-app.get('/api/admin/teachers-list', async (req, res) => {
-  try {
-    const [teachers] = await db.query("SELECT teacher_id, full_name, email, dept_code, created_at FROM teachers ORDER BY created_at DESC");
-    res.json(teachers);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get All Students
-app.get('/api/admin/students-list', async (req, res) => {
-  try {
-    const [students] = await db.query("SELECT roll_no, full_name, parent_phone, dept_code, year_level, section FROM students ORDER BY created_at DESC");
-    res.json(students);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-// ==================== EDIT & DELETE API ENDPOINTS ====================
-
-// 1. UPDATE FACULTY / TEACHER
-app.put('/api/admin/teachers/update', async (req, res) => {
-  const { teacher_id, full_name, email, dept_code } = req.body;
-  if (!teacher_id || !full_name || !dept_code) {
-    return res.status(400).json({ success: false, message: "Teacher ID, Name, and Department are required." });
-  }
-
-  try {
-    const updateSql = `UPDATE teachers SET full_name = ?, email = ?, dept_code = ? WHERE teacher_id = ?`;
-    const [result] = await db.query(updateSql, [full_name.trim(), email.trim(), dept_code.trim(), teacher_id.trim()]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Faculty member not found." });
-    }
-    res.json({ success: true, message: "Faculty updated successfully!" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// 2. DELETE FACULTY / TEACHER
-app.delete('/api/admin/teachers/delete', async (req, res) => {
-  const { teacher_id } = req.query;
-  if (!teacher_id) {
-    return res.status(400).json({ success: false, message: "Missing Teacher ID." });
-  }
-
-  try {
-    const deleteSql = 'DELETE FROM teachers WHERE teacher_id = ?';
-    const [result] = await db.query(deleteSql, [teacher_id]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Faculty member not found." });
-    }
-    res.json({ success: true, message: "Faculty deleted successfully!" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// 3. UPDATE STUDENT
-app.put('/api/admin/students/update', async (req, res) => {
-  const { roll_no, full_name, parent_phone, dept_code, year_level, section } = req.body;
-  if (!roll_no || !full_name || !dept_code) {
-    return res.status(400).json({ success: false, message: "Roll No, Name, and Dept are required." });
-  }
-
-  try {
-    const updateSql = `
-      UPDATE students 
-      SET full_name = ?, parent_phone = ?, year_level = ?, section = ? 
-      WHERE roll_no = ? AND dept_code = ?
-    `;
-    const [result] = await db.query(updateSql, [
-      full_name.trim(),
-      parent_phone ? parent_phone.trim() : '0000000000',
-      year_level ? year_level.trim() : '1st Year',
-      section ? section.trim() : 'Sec A',
-      roll_no.trim(),
-      dept_code.trim()
-    ]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Student record not found." });
-    }
-    res.json({ success: true, message: "Student updated successfully!" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
 });
