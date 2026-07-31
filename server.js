@@ -695,8 +695,8 @@ app.get('/Student.html', serveStudentPage);
 
 app.get('/', (req, res) => {
   const possibleIndexPaths = [
-    path.join(__dirname, 'index.html'),
-    path.join(__dirname, 'public', 'index.html')
+    path.join(__dirname, 'login.html'),
+    path.join(__dirname, 'public', 'login.html')
   ];
 
   for (const filePath of possibleIndexPaths) {
@@ -704,7 +704,7 @@ app.get('/', (req, res) => {
       return res.sendFile(filePath);
     }
   }
-  res.status(404).send("index.html missing from server repository.");
+  res.status(404).send("login.html missing from server repository.");
 });
 
 // ==================== START SERVER ====================
