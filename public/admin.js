@@ -51,10 +51,12 @@ async function fetchStats() {
 
 async function addTeacher(e) {
   e.preventDefault();
+  
   const payload = {
     teacher_id: document.getElementById("t_id").value.trim(),
     full_name: document.getElementById("t_name").value.trim(),
     email: document.getElementById("t_email").value.trim(),
+    phone: document.getElementById("t_phone").value.trim(),
     password_hash: document.getElementById("t_pass").value.trim(),
     dept_code: document.getElementById("t_dept").value.trim()
   };
@@ -92,9 +94,10 @@ async function loadTeachersTable() {
         <td><b>${t.teacher_id}</b></td>
         <td>${t.full_name}</td>
         <td>${t.email || '-'}</td>
+        <td>${t.phone || '-'}</td>
         <td>${t.dept_code}</td>
         <td>
-          <button onclick="editTeacher('${t.teacher_id}', '${escapeQuotes(t.full_name)}', '${escapeQuotes(t.email)}', '${t.dept_code}')" class="btn" style="padding:4px 8px; font-size:0.8rem;">✏️ Edit</button>
+          <button onclick="editTeacher('${t.teacher_id}', '${escapeQuotes(t.full_name)}', '${escapeQuotes(t.email)}', '${t.phone || ''}', '${t.dept_code}')" class="btn" style="padding:4px 8px; font-size:0.8rem;">✏️ Edit</button>
           <button onclick="deleteTeacher('${t.teacher_id}')" class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;">🗑️ Delete</button>
         </td>
       </tr>
@@ -104,11 +107,13 @@ async function loadTeachersTable() {
   }
 }
 
-async function editTeacher(teacher_id, oldName, oldEmail, oldDept) {
+async function editTeacher(teacher_id, oldName, oldEmail, oldPhone, oldDept) {
   const full_name = prompt("Update Full Name:", oldName);
   if (full_name === null) return;
   const email = prompt("Update Email:", oldEmail);
   if (email === null) return;
+  const phone = prompt("Update Phone Number:", oldPhone);
+  if (phone === null) return;
   const dept_code = prompt("Update Dept Code:", oldDept);
   if (dept_code === null) return;
 
@@ -116,7 +121,7 @@ async function editTeacher(teacher_id, oldName, oldEmail, oldDept) {
     const res = await fetch(`${API_BASE}/teachers/update`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ teacher_id, full_name, email, dept_code })
+      body: JSON.stringify({ teacher_id, full_name, email, phone, dept_code })
     });
     const result = await res.json();
     if (result.success) {
@@ -256,4 +261,17 @@ async function deleteStudent(roll_no, dept_code) {
 
 function escapeQuotes(str) {
   return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const icon = btn.querySelector("i");
+  if (input.type === "password") {
+    input.type = "text";
+    icon.className = "fa-solid fa-eye-slash";
+  } else {
+    input.type = "password";
+    icon.className = "fa-solid fa-eye";
+  }
 }

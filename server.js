@@ -73,15 +73,17 @@ async function initDB() {
     console.log("⚡ Connected to MySQL. Ensuring tables exist...");
 
     // 1. ADMINS TABLE
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS admins (
-        admin_id VARCHAR(50) PRIMARY KEY,
-        full_name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+   await connection.query(`
+  CREATE TABLE IF NOT EXISTS teachers (
+    teacher_id VARCHAR(50) PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(15),
+    password_hash VARCHAR(255) NOT NULL,
+    dept_code VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`);
 
     // Create default admin if table is empty
     const [existingAdmins] = await connection.query('SELECT * FROM admins LIMIT 1');
@@ -516,7 +518,7 @@ app.get('/api/admin/export-attendance', async (req, res) => {
 
 // 3. Add a New Teacher
 app.post('/api/admin/teachers', async (req, res) => {
-  const { teacher_id, full_name, email, dept_code, password_hash } = req.body;
+  const { teacher_id, full_name, email, phone, dept_code, password_hash } = req.body;
   
   if (!teacher_id || !full_name || !dept_code) {
     return res.status(400).json({ error: "Missing required teacher fields (ID, Name, or Dept)." });
@@ -532,8 +534,8 @@ app.post('/api/admin/teachers', async (req, res) => {
 
   try {
     await db.query(
-      "INSERT INTO teachers (teacher_id, full_name, email, dept_code, password_hash) VALUES (?, ?, ?, ?, ?)",
-      [teacher_id.trim(), full_name.trim(), teacherEmail, dept_code.trim(), teacherPassword]
+      "INSERT INTO teachers (teacher_id, full_name, email, phone, dept_code, password_hash) VALUES (?, ?, ?, ?, ?, ?)",
+      [teacher_id.trim(), full_name.trim(), teacherEmail, phone ? phone.trim() : null, dept_code.trim(), teacherPassword]
     );
     res.json({ success: true, message: "Faculty added successfully!" });
   } catch (err) {
@@ -569,7 +571,7 @@ app.post('/api/admin/students', async (req, res) => {
 // Get All Faculty Members
 app.get('/api/admin/teachers-list', async (req, res) => {
   try {
-    const [teachers] = await db.query("SELECT teacher_id, full_name, email, dept_code, created_at FROM teachers ORDER BY created_at DESC");
+    const [teachers] = await db.query("SELECT teacher_id, full_name, email, phone, dept_code, created_at FROM teachers ORDER BY created_at DESC");
     res.json(teachers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -587,15 +589,16 @@ app.get('/api/admin/students-list', async (req, res) => {
 });
 
 // UPDATE FACULTY / TEACHER
+// 4. UPDATE TEACHER EDIT ROUTE
 app.put('/api/admin/teachers/update', async (req, res) => {
-  const { teacher_id, full_name, email, dept_code } = req.body;
+  const { teacher_id, full_name, email, phone, dept_code } = req.body;
   if (!teacher_id || !full_name || !dept_code) {
     return res.status(400).json({ success: false, message: "Teacher ID, Name, and Department are required." });
   }
 
   try {
-    const updateSql = `UPDATE teachers SET full_name = ?, email = ?, dept_code = ? WHERE teacher_id = ?`;
-    const [result] = await db.query(updateSql, [full_name.trim(), email.trim(), dept_code.trim(), teacher_id.trim()]);
+    const updateSql = `UPDATE teachers SET full_name = ?, email = ?, phone = ?, dept_code = ? WHERE teacher_id = ?`;
+    const [result] = await db.query(updateSql, [full_name.trim(), email.trim(), phone ? phone.trim() : null, dept_code.trim(), teacher_id.trim()]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Faculty member not found." });
@@ -729,8 +732,7 @@ app.post('/api/request-reset-otp', async (req, res) => {
   }
 
   try {
-    // Look up teacher and parent_phone or dedicated phone
-    const [rows] = await db.query('SELECT teacher_id, full_name, email FROM teachers WHERE teacher_id = ?', [teacherId.trim()]);
+    const [rows] = await db.query('SELECT teacher_id, full_name, phone FROM teachers WHERE teacher_id = ?', [teacherId.trim()]);
     
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Faculty ID not found.' });
@@ -738,26 +740,24 @@ app.post('/api/request-reset-otp', async (req, res) => {
 
     const teacher = rows[0];
 
-    // Generate random 6-digit OTP
+    if (!teacher.phone) {
+      return res.status(400).json({ success: false, message: 'No phone number registered for this Faculty account. Please contact Administrator.' });
+    }
+
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP with 5-minute expiration
     otpStore[teacher.teacher_id] = {
       otp: generatedOtp,
       expiresAt: Date.now() + (5 * 60 * 1000)
     };
 
-    // Construct WhatsApp Message
-    const message = `🔒 SmartAttend Verification Code: Your 2-Step verification OTP for password reset is ${generatedOtp}. Valid for 5 minutes. Do not share this with anyone.`;
+    const message = `🔒 SmartAttend Verification Code: Your OTP for password reset is ${generatedOtp}. Valid for 5 minutes.`;
 
-    // Note: Assuming phone number is linked. For demo, we send to registered phone or dummy number
-    const targetPhone = "9876543210"; // Replace with teacher's phone column if added to schema
-
-    const result = await sendWhatsAppMessage(targetPhone, message);
+    const result = await sendWhatsAppMessage(teacher.phone, message);
 
     res.json({ 
       success: true, 
-      message: `OTP sent to your registered WhatsApp number ending in ${targetPhone.slice(-4)}!`,
+      message: `OTP sent to your registered WhatsApp number (${teacher.phone.slice(-4)})!`,
       simulated: result.simulated
     });
 

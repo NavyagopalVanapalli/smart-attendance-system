@@ -567,3 +567,35 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
     min-width: 650px; /* Prevents cell distortion on mobile */
   }
 }
+
+
+/* PASSWORD WRAPPER WITH SHOW/HIDE EYE ICON */
+.pwd-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.pwd-wrapper input {
+  padding-right: 42px !important;
+}
+
+.toggle-pwd-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.toggle-pwd-btn:hover {
+  color: #38bdf8;
+}
