@@ -3,6 +3,22 @@ if (localStorage.getItem("appTheme") === "dark") {
   document.body.classList.add("dark-mode");
 }
 
+// Place this at the TOP of script.js
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  
+  const icon = btn.querySelector("i");
+  if (input.type === "password") {
+    input.type = "text";
+    if (icon) icon.className = "fa-solid fa-eye-slash";
+  } else {
+    input.type = "password";
+    if (icon) icon.className = "fa-solid fa-eye";
+  }
+}
+
+
 // 2. Global function reachable by theme toggle button
 function toggleDarkMode() {
   document.body.classList.toggle("dark-mode");
@@ -717,7 +733,7 @@ if (closeForgotModalBtn) {
   });
 }
 
-// STEP 1: Send OTP Handler
+// Step 1: Request & Open WhatsApp OTP Link
 if (sendOtpBtn) {
   sendOtpBtn.addEventListener("click", async () => {
     const teacherId = document.getElementById("resetTeacherId").value.trim();
@@ -728,7 +744,7 @@ if (sendOtpBtn) {
     }
 
     sendOtpBtn.disabled = true;
-    sendOtpBtn.textContent = "Sending OTP...";
+    sendOtpBtn.textContent = "Generating OTP...";
 
     try {
       const response = await fetch('/api/request-reset-otp', {
@@ -741,9 +757,24 @@ if (sendOtpBtn) {
 
       if (data.success) {
         alert("✅ " + data.message);
+
+        // Show WhatsApp button and input fields
+        const whatsappLinkWrapper = document.getElementById("whatsappLinkWrapper");
+        const whatsappOtpLink = document.getElementById("whatsappOtpLink");
+
+        if (whatsappOtpLink && data.whatsappUrl) {
+          whatsappOtpLink.href = data.whatsappUrl;
+        }
+
+        if (whatsappLinkWrapper) whatsappLinkWrapper.classList.remove("hidden");
         if (otpStepFields) otpStepFields.classList.remove("hidden");
         if (submitResetPasswordBtn) submitResetPasswordBtn.classList.remove("hidden");
+        
         sendOtpBtn.classList.add("hidden");
+
+        // Automatically trigger WhatsApp window open
+        if (data.whatsappUrl) window.open(data.whatsappUrl, "_blank");
+
       } else {
         alert("Error: " + data.message);
       }
@@ -751,7 +782,7 @@ if (sendOtpBtn) {
       alert("Failed to connect to backend server.");
     } finally {
       sendOtpBtn.disabled = false;
-      sendOtpBtn.textContent = "💬 Send Verification OTP via WhatsApp";
+      sendOtpBtn.textContent = "⚡ Generate Verification OTP";
     }
   });
 }

@@ -13,38 +13,34 @@
 <body>
 
   <!-- TOP HEADER -->
-<!-- TOP HEADER -->
-  <!-- TOP HEADER -->
-<header class="navbar">
-  <div class="logo">
-    <img src="/Srivishnu_Logo.jpg" alt="Vishnulogo" class="nav-logo-img">
-    <span>SmartAttend</span>
-  </div>
+  <header class="navbar">
+    <div class="logo">
+      <img src="/Srivishnu_Logo.jpg" alt="Vishnulogo" class="nav-logo-img">
+      <span>SmartAttend</span>
+    </div>
 
-  <!-- Hamburger Menu Icon Button -->
-  <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle Navigation">
-    <i class="fa-solid fa-bars"></i>
-  </button>
-
-  <!-- Navigation Actions -->
-  <div class="nav-actions" id="navActions">
-    <a href="/admin-login.html" class="btn btn-secondary" style="text-decoration: none;">
-      🛡️ Admin Panel
-    </a>
-    <button id="changePasswordBtn" class="btn btn-secondary hidden">
-      <i class="fa-solid fa-key"></i> Change Password
+    <!-- Hamburger Menu Icon Button -->
+    <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle Navigation">
+      <i class="fa-solid fa-bars"></i>
     </button>
-    <button id="themeToggleBtn" onclick="toggleDarkMode()" type="button" class="btn btn-secondary">
-      🌙 Dark Mode
-    </button>
-    <button id="logoutBtn" class="btn btn-danger hidden">
-      <i class="fa-solid fa-right-from-bracket"></i> Logout
-    </button>
-  </div>
-</header>
 
+    <!-- Navigation Actions -->
+    <div class="nav-actions" id="navActions">
+      <a href="/admin-login.html" class="btn btn-secondary" style="text-decoration: none;">
+        🛡️ Admin Panel
+      </a>
+      <button id="changePasswordBtn" class="btn btn-secondary hidden">
+        <i class="fa-solid fa-key"></i> Change Password
+      </button>
+      <button id="themeToggleBtn" onclick="toggleDarkMode()" type="button" class="btn btn-secondary">
+        🌙 Dark Mode
+      </button>
+      <button id="logoutBtn" class="btn btn-danger hidden">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </button>
+    </div>
+  </header>
 
-  
   <!-- LOGIN SECTION -->
   <section id="loginSection" class="lms-login-wrapper">
     <div class="lms-login-card">
@@ -66,33 +62,35 @@
       </div>
 
       <!-- RIGHT PANEL: LOGIN FORM -->
-       <!-- Add this inside index.html header or navigation bar -->
       <div class="lms-right-panel">
         <h2>LOGIN</h2>
         <div class="lms-input-box">
           <input type="text" id="teacherId" placeholder="Your Email / Faculty ID *" value="FAC101" required>
         </div>
-       <div class="lms-input-box">
-  <div class="pwd-wrapper">
-    <input type="password" id="password" placeholder="Your Password *" required>
-    <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('password', this)">
-      <i class="fa-solid fa-eye"></i>
-    </button>
-  </div>
-</div>
-        <button id="loginBtn" class="btn lms-btn-submit">LOGIN</button>
-        <a href="#" id="forgotPasswordLink" style="color: var(--primary); font-size: 0.85rem; display: block; margin-top: 14px; text-decoration: none; font-weight: 600;">Forgot Password?</a>
-          <a href="/admin.html" style="color: white; font-weight: bold; margin-left: 15px;">
-  🛡️ Admin Panel
-</a>
 
-        <!-- Forgot Password Modal -->
-       <!-- Forgot Password Modal with 2SV OTP -->
+        <div class="lms-input-box">
+          <div class="pwd-wrapper">
+            <input type="password" id="password" placeholder="Your Password *" required>
+            <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('password', this)">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button id="loginBtn" class="btn lms-btn-submit">LOGIN</button>
+        
+        <div style="margin-top: 14px; display: flex; gap: 15px; align-items: center; justify-content: center;">
+          <a href="#" id="forgotPasswordLink" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 600;">Forgot Password?</a>
+          <a href="/admin-login.html" style="color: var(--text-main); font-size: 0.85rem; text-decoration: none; font-weight: 700;">🛡️ Admin Login</a>
+        </div>
+
+        
+        <!-- Forgot Password Modal with WhatsApp OTP Link -->
 <div id="forgotPasswordModal" class="modal-overlay hidden">
   <div class="modal-card">
-    <h3>🔑 Reset Password (2-Step Verification)</h3>
+    <h3>🔑 Reset Password (WhatsApp 2-Step)</h3>
     <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
-      Enter your Faculty ID to receive a WhatsApp verification code.
+      Enter your Faculty ID to generate your verification OTP code.
     </p>
     
     <!-- STEP 1: Faculty ID -->
@@ -101,11 +99,21 @@
       <input type="text" id="resetTeacherId" placeholder="e.g. FAC101">
     </div>
 
-    <button id="sendOtpBtn" class="btn btn-secondary" style="width: 100%; margin-bottom: 15px;">
-      💬 Send Verification OTP via WhatsApp
+    <button id="sendOtpBtn" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;">
+      ⚡ Generate Verification OTP
     </button>
 
-    <!-- STEP 2: OTP & New Password (Hidden until OTP is sent) -->
+    <!-- STEP 1.5: WhatsApp Direct Launcher (Hidden initially) -->
+    <div id="whatsappLinkWrapper" class="hidden" style="margin-bottom: 15px; text-align: center;">
+      <a id="whatsappOtpLink" href="#" target="_blank" class="btn btn-secondary" style="width: 100%; border-color: #25D366; color: #25D366; text-decoration: none;">
+        💬 Open WhatsApp to View / Send OTP
+      </a>
+      <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">
+        Clicking opens WhatsApp with your pre-filled 6-digit OTP.
+      </p>
+    </div>
+
+    <!-- STEP 2: Enter OTP & New Password -->
     <div id="otpStepFields" class="hidden">
       <div class="input-group">
         <label>6-Digit OTP Code</label>
@@ -114,7 +122,12 @@
 
       <div class="input-group">
         <label>New Password</label>
-        <input type="password" id="resetNewPassword" placeholder="Enter new password">
+        <div class="pwd-wrapper">
+          <input type="password" id="resetNewPassword" placeholder="Enter new password">
+          <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('resetNewPassword', this)">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -124,6 +137,7 @@
     </div>
   </div>
 </div>
+
       </div>
 
     </div>
@@ -290,11 +304,21 @@
       <h3 style="margin-bottom: 15px;">Change Faculty Password</h3>
       <div class="input-group">
         <label>Current Password</label>
-        <input type="password" id="currentPassword" placeholder="Enter current password">
+        <div class="pwd-wrapper">
+          <input type="password" id="currentPassword" placeholder="Enter current password">
+          <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('currentPassword', this)">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
       </div>
       <div class="input-group">
         <label>New Password</label>
-        <input type="password" id="newPassword" placeholder="Enter new password">
+        <div class="pwd-wrapper">
+          <input type="password" id="newPassword" placeholder="Enter new password">
+          <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('newPassword', this)">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
       </div>
       <div class="modal-actions">
         <button id="savePasswordBtn" class="btn btn-primary">Update Password</button>

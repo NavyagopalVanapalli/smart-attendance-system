@@ -723,7 +723,7 @@ app.listen(PORT, '0.0.0.0', () => {
 // Key: teacherId, Value: { otp, expiresAt }
 let otpStore = {};
 
-// 1. REQUEST OTP ENDPOINT
+// REQUEST RESET OTP (Returns Direct WhatsApp Web Link)
 app.post('/api/request-reset-otp', async (req, res) => {
   const { teacherId } = req.body;
 
@@ -741,31 +741,40 @@ app.post('/api/request-reset-otp', async (req, res) => {
     const teacher = rows[0];
 
     if (!teacher.phone) {
-      return res.status(400).json({ success: false, message: 'No phone number registered for this Faculty account. Please contact Administrator.' });
+      return res.status(400).json({ success: false, message: 'No phone number registered for this Faculty ID. Contact Admin.' });
     }
 
+    // Clean phone number (Ensure 91 country code prefix)
+    let cleanPhone = teacher.phone.replace(/\D/g, "");
+    if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+    // Generate random 6-digit OTP
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Store in memory for 5 minutes
     otpStore[teacher.teacher_id] = {
       otp: generatedOtp,
       expiresAt: Date.now() + (5 * 60 * 1000)
     };
 
-    const message = `🔒 SmartAttend Verification Code: Your OTP for password reset is ${generatedOtp}. Valid for 5 minutes.`;
-
-    const result = await sendWhatsAppMessage(teacher.phone, message);
+    // Pre-filled WhatsApp message
+    const messageText = `🔒 SmartAttend Verification Code: Your OTP for resetting password is ${generatedOtp}. Valid for 5 minutes.`;
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
 
     res.json({ 
       success: true, 
-      message: `OTP sent to your registered WhatsApp number (${teacher.phone.slice(-4)})!`,
-      simulated: result.simulated
+      message: `OTP generated for ${teacher.full_name}! Click the link below to open WhatsApp.`,
+      whatsappUrl: whatsappUrl,
+      otpDebug: generatedOtp // Useful for quick testing in development
     });
 
   } catch (err) {
-    console.error("OTP Request Error:", err);
+    console.error("OTP Generation Error:", err);
     res.status(500).json({ success: false, message: 'Failed to process OTP request.' });
   }
 });
+
+
 
 // 2. VERIFY OTP AND RESET PASSWORD ENDPOINT
 app.post('/api/verify-otp-reset-password', async (req, res) => {
