@@ -444,18 +444,31 @@ app.get('/api/admin/export-attendance', async (req, res) => {
 });
 
 // 3. Add a New Teacher
+// Add a New Teacher (Fixed for NOT NULL schema constraints)
 app.post('/api/admin/teachers', async (req, res) => {
   const { teacher_id, full_name, email, dept_code, password_hash } = req.body;
+  
   if (!teacher_id || !full_name || !dept_code) {
-    return res.status(400).json({ error: "Missing required teacher fields." });
+    return res.status(400).json({ error: "Missing required teacher fields (ID, Name, or Dept)." });
   }
+
+  // Provide fallback defaults so MySQL NOT NULL checks don't fail
+  const teacherEmail = email && email.trim() !== '' 
+    ? email 
+    : `${teacher_id.toLowerCase()}@college.edu`;
+    
+  const teacherPassword = password_hash && password_hash.trim() !== '' 
+    ? password_hash 
+    : 'admin123'; // Default temporary password
+
   try {
     await db.query(
       "INSERT INTO teachers (teacher_id, full_name, email, dept_code, password_hash) VALUES (?, ?, ?, ?, ?)",
-      [teacher_id, full_name, email || null, dept_code, password_hash || '123456']
+      [teacher_id, full_name, teacherEmail, dept_code, teacherPassword]
     );
-    res.json({ success: true, message: "Teacher added successfully!" });
+    res.json({ success: true, message: "Faculty added successfully!" });
   } catch (err) {
+    console.error("SQL Error during Add Teacher:", err);
     res.status(500).json({ error: err.message });
   }
 });
