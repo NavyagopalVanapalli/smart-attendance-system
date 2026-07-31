@@ -83,3 +83,54 @@ async function addStudent(e) {
   }
 }
 
+
+// Fetch and render Teachers Table
+async function loadTeachersTable() {
+  try {
+    const res = await fetch('/api/admin/teachers-list');
+    const teachers = await res.json();
+    const tbody = document.getElementById("teachersTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = teachers.map(t => `
+      <tr>
+        <td><b>${t.teacher_id}</b></td>
+        <td>${t.full_name}</td>
+        <td>${t.email}</td>
+        <td>${t.dept_code}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error("Error loading teachers:", err);
+  }
+}
+
+// Fetch and render Students Table
+async function loadStudentsTable() {
+  try {
+    const res = await fetch('/api/admin/students-list');
+    const students = await res.json();
+    const tbody = document.getElementById("studentsTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = students.map(s => `
+      <tr>
+        <td><b>${s.roll_no}</b></td>
+        <td>${s.full_name}</td>
+        <td>${s.parent_phone}</td>
+        <td>${s.dept_code}</td>
+        <td>${s.year_level}</td>
+        <td>${s.section}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error("Error loading students:", err);
+  }
+}
+
+// Automatically load tables on page load
+document.addEventListener("DOMContentLoaded", () => {
+  loadTeachersTable();
+  loadStudentsTable();
+});
+

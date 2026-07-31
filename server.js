@@ -563,3 +563,24 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
 });
+
+
+// Get All Faculty Members
+app.get('/api/admin/teachers-list', async (req, res) => {
+  try {
+    const [teachers] = await db.query("SELECT teacher_id, full_name, email, dept_code, created_at FROM teachers ORDER BY created_at DESC");
+    res.json(teachers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get All Students
+app.get('/api/admin/students-list', async (req, res) => {
+  try {
+    const [students] = await db.query("SELECT roll_no, full_name, parent_phone, dept_code, year_level, section FROM students ORDER BY created_at DESC");
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
