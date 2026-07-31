@@ -410,22 +410,37 @@ app.delete('/api/students/delete', async (req, res) => {
 // 1. Get High-Level Dashboard Statistics
 app.get('/api/admin/stats', async (req, res) => {
   try {
-    const [[{ totalStudents }]] = await db.query("SELECT COUNT(*) as totalStudents FROM students");
-    const [[{ totalTeachers }]] = await db.query("SELECT COUNT(*) as totalTeachers FROM teachers");
-    const [[{ todayPresent }]] = await db.query(
-      "SELECT COUNT(*) as todayPresent FROM attendance WHERE date = CURDATE() AND status = 'Present'"
-    );
-    const [[{ todayAbsent }]] = await db.query(
-      "SELECT COUNT(*) as todayAbsent FROM attendance WHERE date = CURDATE() AND status = 'Absent'"
-    );
+    // 1. Get total students (using COUNT(*) so primary key column name doesn't matter)
+    const [[studentsCount]] = await db.query("SELECT COUNT(*) AS totalStudents FROM students");
+
+    // 2. Get total faculty
+    const [[teachersCount]] = await db.query("SELECT COUNT(*) AS totalTeachers FROM teachers");
+
+    // 3. Get today's attendance stats (if attendance table exists)
+    const today = new Date().toISOString().split('T')[0];
+    let presentCount = 0;
+    let absentCount = 0;
+
+    try {
+      const [[p]] = await db.query("SELECT COUNT(*) AS total FROM attendance WHERE status = 'PRESENT' AND DATE(marked_at) = ?", [today]);
+      const [[a]] = await db.query("SELECT COUNT(*) AS total FROM attendance WHERE status = 'ABSENT' AND DATE(marked_at) = ?", [today]);
+      presentCount = p.total || 0;
+      absentCount = a.total || 0;
+    } catch (attErr) {
+      // Fallback if attendance records aren't generated yet for today
+      presentCount = 0;
+      absentCount = 0;
+    }
 
     res.json({
-      totalStudents,
-      totalTeachers,
-      todayPresent,
-      todayAbsent
+      totalStudents: studentsCount.totalStudents || 0,
+      totalTeachers: teachersCount.totalTeachers || 0,
+      todayPresent: presentCount,
+      todayAbsent: absentCount
     });
+
   } catch (err) {
+    console.error("Error fetching stats:", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -7,18 +7,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function fetchStats() {
   try {
-    const res = await fetch(`${API_BASE}/stats`);
+    const res = await fetch('/api/admin/stats');
     const data = await res.json();
-    
-    document.getElementById("stat-students").innerText = data.totalStudents || 0;
-    document.getElementById("stat-teachers").innerText = data.totalTeachers || 0;
-    document.getElementById("stat-present").innerText = data.todayPresent || 0;
-    document.getElementById("stat-absent").innerText = data.todayAbsent || 0;
+
+    console.log("Stats received:", data);
+
+    // Update stat card DOM elements
+    if (document.getElementById("totalStudents")) {
+      document.getElementById("totalStudents").innerText = data.totalStudents;
+    }
+    if (document.getElementById("totalTeachers")) {
+      document.getElementById("totalTeachers").innerText = data.totalTeachers;
+    }
+    if (document.getElementById("todayPresent")) {
+      document.getElementById("todayPresent").innerText = data.todayPresent;
+    }
+    if (document.getElementById("todayAbsent")) {
+      document.getElementById("todayAbsent").innerText = data.todayAbsent;
+    }
   } catch (err) {
-    alert("Error fetching admin stats. Is node server running?");
+    console.error("Failed to load admin stats:", err);
   }
 }
 
+// Call on page load
+document.addEventListener("DOMContentLoaded", fetchStats);
 function downloadCSV() {
   window.open(`${API_BASE}/export-attendance`, '_blank');
 }
