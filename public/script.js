@@ -745,4 +745,34 @@ document.addEventListener("DOMContentLoaded", () => {
   if (activeTeacher) {
     showDashboard(activeTeacher);
   }
+
+
+  // Add this inside document.addEventListener("DOMContentLoaded", () => { ... })
+const hamburgerBtn = document.getElementById("hamburgerBtn");
+const navActions = document.getElementById("navActions");
+
+if (hamburgerBtn && navActions) {
+  hamburgerBtn.addEventListener("click", () => {
+    navActions.classList.toggle("active");
+    
+    // Toggle icon between bars and close X
+    const icon = hamburgerBtn.querySelector("i");
+    if (icon) {
+      if (navActions.classList.contains("active")) {
+        icon.className = "fa-solid fa-xmark";
+      } else {
+        icon.className = "fa-solid fa-bars";
+      }
+    }
+  });
+
+  // Close mobile menu when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!hamburgerBtn.contains(e.target) && !navActions.contains(e.target)) {
+      navActions.classList.remove("active");
+      const icon = hamburgerBtn.querySelector("i");
+      if (icon) icon.className = "fa-solid fa-bars";
+    }
+  });
+}
 });

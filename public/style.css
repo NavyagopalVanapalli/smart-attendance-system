@@ -484,3 +484,86 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   .lms-left-panel { border-right: none; border-bottom: 1px solid var(--border-color); padding: 2rem 1.5rem; }
   .lms-right-panel { padding: 2rem 1.5rem; }
 }
+
+
+/* ==================== HAMBURGER & RESPONSIVE NAVBAR ==================== */
+
+/* Hide Hamburger Button on Desktop */
+.hamburger-btn {
+  display: none;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  font-size: 1.4rem;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  backdrop-filter: var(--blur-amount);
+}
+
+/* Tablet & Mobile Screens (768px and below) */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0.85rem 1.2rem;
+  }
+
+  .hamburger-btn {
+    display: block; /* Show hamburger button on mobile */
+  }
+
+  .nav-actions {
+    display: none; /* Hide nav links by default on mobile */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    background: var(--card-bg-solid);
+    backdrop-filter: var(--blur-amount);
+    -webkit-backdrop-filter: var(--blur-amount);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 1.2rem;
+    gap: 1rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    z-index: 200;
+  }
+
+  /* Active class toggled by JS when hamburger is clicked */
+  .nav-actions.active {
+    display: flex !important;
+  }
+
+  .nav-actions .btn {
+    width: 100%; /* Full width buttons inside mobile menu */
+    justify-content: center;
+  }
+
+  /* Fix Page Responsiveness for Mobile Controls */
+  .dashboard-container {
+    width: 95%;
+    margin: 1rem auto;
+  }
+
+  .filter-group {
+    grid-template-columns: 1fr; /* Stack filter items vertically */
+  }
+
+  .action-buttons {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .action-buttons .btn {
+    flex: 1 1 100%;
+  }
+
+  /* Make attendance & summary tables scroll horizontally on small screens */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 650px; /* Prevents cell distortion on mobile */
+  }
+}

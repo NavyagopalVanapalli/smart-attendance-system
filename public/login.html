@@ -14,27 +14,34 @@
 
   <!-- TOP HEADER -->
 <!-- TOP HEADER -->
-  <header class="navbar">
-    <div class="logo">
-      <img src="/Srivishnu_Logo.jpg" alt="Vishnulogo" class="nav-logo-img">
-      <span>SmartAttend</span>
-    </div>
-    <div class="nav-actions">
-      <!-- Top Right Admin Panel Link -->
-      <a href="/admin-login.html" class="btn btn-secondary" style="text-decoration: none;">
-        🛡️ Admin Panel
-      </a>
-      <button id="changePasswordBtn" class="btn btn-secondary hidden">
-        <i class="fa-solid fa-key"></i> Change Password
-      </button>
-      <button id="themeToggleBtn" onclick="toggleDarkMode()" type="button" class="btn btn-secondary">
-        🌙 Dark Mode
-      </button>
-      <button id="logoutBtn" class="btn btn-danger hidden">
-        <i class="fa-solid fa-right-from-bracket"></i> Logout
-      </button>
-    </div>
-  </header>
+  <!-- TOP HEADER -->
+<header class="navbar">
+  <div class="logo">
+    <img src="/Srivishnu_Logo.jpg" alt="Vishnulogo" class="nav-logo-img">
+    <span>SmartAttend</span>
+  </div>
+
+  <!-- Hamburger Menu Icon Button -->
+  <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle Navigation">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+
+  <!-- Navigation Actions -->
+  <div class="nav-actions" id="navActions">
+    <a href="/admin-login.html" class="btn btn-secondary" style="text-decoration: none;">
+      🛡️ Admin Panel
+    </a>
+    <button id="changePasswordBtn" class="btn btn-secondary hidden">
+      <i class="fa-solid fa-key"></i> Change Password
+    </button>
+    <button id="themeToggleBtn" onclick="toggleDarkMode()" type="button" class="btn btn-secondary">
+      🌙 Dark Mode
+    </button>
+    <button id="logoutBtn" class="btn btn-danger hidden">
+      <i class="fa-solid fa-right-from-bracket"></i> Logout
+    </button>
+  </div>
+</header>
 
 
   
