@@ -1,4 +1,3 @@
-/* ==================== GLOBAL STYLES & BACKGROUND ==================== */
 * {
   margin: 0;
   padding: 0;
@@ -8,25 +7,29 @@
 
 body {
   min-height: 100vh;
-  /* Animated/Vibrant gradient background needed for glassmorphism pop */
   background: linear-gradient(135deg, #0f172a, #1e1b4b, #311042);
   background-attachment: fixed;
   color: #f8fafc;
-  padding: 30px 20px;
+  padding: 20px 15px;
 }
 
-/* ==================== CONTAINER & CARDS ==================== */
 .container {
   max-width: 1200px;
   margin: 0 auto;
 }
 
-/* Base Glassmorphism Card Style */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .card, .stat-box {
-  background: rgba(255, 255, 255, 0.08); /* Translucent white layer */
-  backdrop-filter: blur(16px);             /* Glass frosted blur */
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15); /* Soft glowing border */
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 25px;
@@ -39,15 +42,12 @@ body {
   box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
 }
 
-/* Header Styling */
 h1, h2, h3 {
   font-weight: 600;
-  letter-spacing: 0.5px;
   color: #ffffff;
   margin-bottom: 15px;
 }
 
-/* ==================== STATS GRID ==================== */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -61,7 +61,7 @@ h1, h2, h3 {
 }
 
 .stat-box h4 {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #cbd5e1;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -76,7 +76,6 @@ h1, h2, h3 {
   -webkit-text-fill-color: transparent;
 }
 
-/* ==================== GLASS FORMS & INPUTS ==================== */
 form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -108,18 +107,13 @@ input, select {
   transition: all 0.3s ease;
 }
 
-input::placeholder {
-  color: #94a3b8;
-}
-
 input:focus, select:focus {
   background: rgba(255, 255, 255, 0.12);
   border-color: #38bdf8;
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
 
-/* Glass Buttons */
-.btn, button[type="submit"] {
+.btn {
   padding: 12px 20px;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.4), rgba(129, 140, 248, 0.4));
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -127,75 +121,70 @@ input:focus, select:focus {
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  display: inline-block;
+  text-align: center;
 }
 
-.btn:hover, button[type="submit"]:hover {
+.btn:hover {
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.7), rgba(129, 140, 248, 0.7));
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.4);
 }
 
-/* ==================== GLASS TABLES ==================== */
-table {
+.btn-back {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.4), rgba(220, 38, 38, 0.6)) !important;
+}
+
+/* RESPONSIVE TABLE WRAPPER */
+.table-responsive {
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-  overflow: hidden;
+  overflow-x: auto;
   border-radius: 12px;
 }
 
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  min-width: 600px; /* Prevents text squishing on mobile */
+}
+
 th, td {
-  padding: 14px 16px;
+  padding: 12px 14px;
   text-align: left;
 }
 
 th {
   background: rgba(255, 255, 255, 0.12);
   color: #e2e8f0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   color: #cbd5e1;
-  font-size: 0.95rem;
-}
-
-tr:hover td {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* Action button variations inside tables */
-.btn-danger {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.4), rgba(220, 38, 38, 0.6)) !important;
-}
-.btn-danger:hover {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.9)) !important;
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4) !important;
-}
-
-
-/* ==================== BACK BUTTON ==================== */
-.btn-back {
-  display: inline-block;
-  margin-bottom: 20px;
-  text-decoration: none; /* Removes the underline from the link */
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #e2e8f0;
   font-size: 0.9rem;
 }
 
-.btn-back:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: #ffffff;
-  color: #ffffff;
-  /* Override the blue gradient hover from the main .btn class */
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+/* MEDIA QUERIES FOR MOBILE DEVICES */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+  .card {
+    padding: 16px;
+  }
+  form {
+    grid-template-columns: 1fr; /* Single column layout on small screens */
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
