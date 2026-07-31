@@ -599,3 +599,77 @@ app.get('/api/admin/students-list', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+// ==================== EDIT & DELETE API ENDPOINTS ====================
+
+// 1. UPDATE FACULTY / TEACHER
+app.put('/api/admin/teachers/update', async (req, res) => {
+  const { teacher_id, full_name, email, dept_code } = req.body;
+  if (!teacher_id || !full_name || !dept_code) {
+    return res.status(400).json({ success: false, message: "Teacher ID, Name, and Department are required." });
+  }
+
+  try {
+    const updateSql = `UPDATE teachers SET full_name = ?, email = ?, dept_code = ? WHERE teacher_id = ?`;
+    const [result] = await db.query(updateSql, [full_name.trim(), email.trim(), dept_code.trim(), teacher_id.trim()]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Faculty member not found." });
+    }
+    res.json({ success: true, message: "Faculty updated successfully!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 2. DELETE FACULTY / TEACHER
+app.delete('/api/admin/teachers/delete', async (req, res) => {
+  const { teacher_id } = req.query;
+  if (!teacher_id) {
+    return res.status(400).json({ success: false, message: "Missing Teacher ID." });
+  }
+
+  try {
+    const deleteSql = 'DELETE FROM teachers WHERE teacher_id = ?';
+    const [result] = await db.query(deleteSql, [teacher_id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Faculty member not found." });
+    }
+    res.json({ success: true, message: "Faculty deleted successfully!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 3. UPDATE STUDENT
+app.put('/api/admin/students/update', async (req, res) => {
+  const { roll_no, full_name, parent_phone, dept_code, year_level, section } = req.body;
+  if (!roll_no || !full_name || !dept_code) {
+    return res.status(400).json({ success: false, message: "Roll No, Name, and Dept are required." });
+  }
+
+  try {
+    const updateSql = `
+      UPDATE students 
+      SET full_name = ?, parent_phone = ?, year_level = ?, section = ? 
+      WHERE roll_no = ? AND dept_code = ?
+    `;
+    const [result] = await db.query(updateSql, [
+      full_name.trim(),
+      parent_phone ? parent_phone.trim() : '0000000000',
+      year_level ? year_level.trim() : '1st Year',
+      section ? section.trim() : 'Sec A',
+      roll_no.trim(),
+      dept_code.trim()
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Student record not found." });
+    }
+    res.json({ success: true, message: "Student updated successfully!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});

@@ -1,20 +1,19 @@
 const API_BASE = "http://localhost:5000/api/admin";
 
-// Load Metrics on Page Load
 document.addEventListener("DOMContentLoaded", () => {
   fetchStats();
+  loadTeachersTable();
+  loadStudentsTable();
 });
 
+// Load Dashboard Metrics
 async function fetchStats() {
   try {
     const res = await fetch('/api/admin/stats');
     const data = await res.json();
 
-    console.log("Stats received from server:", data);
-
-    // Explicitly update each card if the element exists
     const studentElem = document.getElementById("totalStudents");
-    const teacherElem = document.getElementById("totalTeachers") || document.getElementById("totalFaculty"); // Checks both common ID names
+    const teacherElem = document.getElementById("totalTeachers") || document.getElementById("totalFaculty");
     const presentElem = document.getElementById("todayPresent");
     const absentElem = document.getElementById("todayAbsent");
 
@@ -22,21 +21,14 @@ async function fetchStats() {
     if (teacherElem) teacherElem.innerText = data.totalTeachers ?? 0;
     if (presentElem) presentElem.innerText = data.todayPresent ?? 0;
     if (absentElem) absentElem.innerText = data.todayAbsent ?? 0;
-
   } catch (err) {
     console.error("Failed to fetch admin stats:", err);
   }
 }
 
-// Ensure stats load on start
-document.addEventListener("DOMContentLoaded", fetchStats);
+// ----------------- FACULTY CRUD OPERATIONS -----------------
 
-// Call on page load
-document.addEventListener("DOMContentLoaded", fetchStats);
-function downloadCSV() {
-  window.open(`${API_BASE}/export-attendance`, '_blank');
-}
-
+// Add New Faculty Member
 async function addTeacher(e) {
   e.preventDefault();
   
@@ -44,61 +36,33 @@ async function addTeacher(e) {
     teacher_id: document.getElementById("t_id").value.trim(),
     full_name: document.getElementById("t_name").value.trim(),
     email: document.getElementById("t_email").value.trim(),
-    password_hash: document.getElementById("t_pass").value.trim(), // Passes custom password if entered
+    password_hash: document.getElementById("t_pass").value.trim(),
     dept_code: document.getElementById("t_dept").value.trim()
   };
 
-  const res = await fetch(`${API_BASE}/teachers`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+  try {
+    const res = await fetch(`${API_BASE}/teachers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
 
-  const result = await res.json();
-  // Inside your addTeacher form submission success block:
-if (res.ok && data.success) {
-  alert("✅ Faculty added successfully!");
-  document.getElementById("addTeacherForm").reset();
-  
-  // Force fetch updated stats or reload list:
-  if (typeof fetchStats === "function") fetchStats();
-  
-  // Or simply reload the page to see updated tables:
-  location.reload(); 
-} else {
-    alert("Error: " + result.error);
+    const result = await res.json();
+
+    if (res.ok) {
+      alert("✅ Faculty added successfully!");
+      document.getElementById("addTeacherForm").reset();
+      fetchStats();
+      loadTeachersTable();
+    } else {
+      alert("Error: " + (result.error || result.message));
+    }
+  } catch (err) {
+    alert("Network error adding faculty.");
   }
 }
 
-
-
-async function addStudent(e) {
-  e.preventDefault();
-  const payload = {
-    roll_no: document.getElementById("s_roll").value,
-    full_name: document.getElementById("s_name").value,
-    dept_code: document.getElementById("s_dept").value,
-    parent_phone: document.getElementById("s_phone").value
-  };
-
-  const res = await fetch(`${API_BASE}/students`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const result = await res.json();
-  if (res.ok) {
-    alert("Student added successfully!");
-    document.getElementById("addStudentForm").reset();
-    fetchStats();
-  } else {
-    alert("Error: " + result.error);
-  }
-}
-
-
-// Fetch and render Teachers Table
+// Render Teachers Table
 async function loadTeachersTable() {
   try {
     const res = await fetch('/api/admin/teachers-list');
@@ -110,8 +74,12 @@ async function loadTeachersTable() {
       <tr>
         <td><b>${t.teacher_id}</b></td>
         <td>${t.full_name}</td>
-        <td>${t.email}</td>
+        <td>${t.email || '-'}</td>
         <td>${t.dept_code}</td>
+        <td>
+          <button onclick="editTeacher('${t.teacher_id}', '${escapeQuotes(t.full_name)}', '${escapeQuotes(t.email)}', '${t.dept_code}')" class="btn" style="padding:4px 8px; font-size:0.8rem;">✏️ Edit</button>
+          <button onclick="deleteTeacher('${t.teacher_id}')" class="btn" style="padding:4px 8px; font-size:0.8rem; background:#dc3545; color:white;">🗑️ Delete</button>
+        </td>
       </tr>
     `).join('');
   } catch (err) {
@@ -119,7 +87,92 @@ async function loadTeachersTable() {
   }
 }
 
-// Fetch and render Students Table
+// Edit Faculty Action
+async function editTeacher(teacher_id, oldName, oldEmail, oldDept) {
+  const full_name = prompt("Update Full Name:", oldName);
+  if (full_name === null) return;
+
+  const email = prompt("Update Email:", oldEmail);
+  if (email === null) return;
+
+  const dept_code = prompt("Update Dept Code:", oldDept);
+  if (dept_code === null) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/teachers/update`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teacher_id, full_name, email, dept_code })
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      alert("✅ Faculty updated successfully!");
+      loadTeachersTable();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Failed to update faculty.");
+  }
+}
+
+// Delete Faculty Action
+async function deleteTeacher(teacher_id) {
+  if (!confirm(`Are you sure you want to delete Faculty ID: ${teacher_id}?`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/teachers/delete?teacher_id=${encodeURIComponent(teacher_id)}`, {
+      method: "DELETE"
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      alert("✅ Faculty deleted successfully!");
+      fetchStats();
+      loadTeachersTable();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Failed to delete faculty.");
+  }
+}
+
+// ----------------- STUDENT CRUD OPERATIONS -----------------
+
+// Add New Student
+async function addStudent(e) {
+  e.preventDefault();
+  const payload = {
+    roll_no: document.getElementById("s_roll").value.trim(),
+    full_name: document.getElementById("s_name").value.trim(),
+    dept_code: document.getElementById("s_dept").value.trim(),
+    parent_phone: document.getElementById("s_phone").value.trim()
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/students`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+    if (res.ok) {
+      alert("✅ Student added successfully!");
+      document.getElementById("addStudentForm").reset();
+      fetchStats();
+      loadStudentsTable();
+    } else {
+      alert("Error: " + (result.error || result.message));
+    }
+  } catch (err) {
+    alert("Network error adding student.");
+  }
+}
+
+// Render Students Table
 async function loadStudentsTable() {
   try {
     const res = await fetch('/api/admin/students-list');
@@ -135,6 +188,10 @@ async function loadStudentsTable() {
         <td>${s.dept_code}</td>
         <td>${s.year_level}</td>
         <td>${s.section}</td>
+        <td>
+          <button onclick="editStudent('${s.roll_no}', '${escapeQuotes(s.full_name)}', '${s.parent_phone}', '${s.dept_code}', '${s.year_level}', '${s.section}')" class="btn" style="padding:4px 8px; font-size:0.8rem;">✏️ Edit</button>
+          <button onclick="deleteStudent('${s.roll_no}', '${s.dept_code}')" class="btn" style="padding:4px 8px; font-size:0.8rem; background:#dc3545; color:white;">🗑️ Delete</button>
+        </td>
       </tr>
     `).join('');
   } catch (err) {
@@ -142,9 +199,62 @@ async function loadStudentsTable() {
   }
 }
 
-// Automatically load tables on page load
-document.addEventListener("DOMContentLoaded", () => {
-  loadTeachersTable();
-  loadStudentsTable();
-});
+// Edit Student Action
+async function editStudent(roll_no, oldName, oldPhone, dept_code, oldYear, oldSec) {
+  const full_name = prompt("Update Full Name:", oldName);
+  if (full_name === null) return;
 
+  const parent_phone = prompt("Update Parent Phone:", oldPhone);
+  if (parent_phone === null) return;
+
+  const year_level = prompt("Update Year Level:", oldYear);
+  if (year_level === null) return;
+
+  const section = prompt("Update Section:", oldSec);
+  if (section === null) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/students/update`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roll_no, full_name, parent_phone, dept_code, year_level, section })
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      alert("✅ Student updated successfully!");
+      loadStudentsTable();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Failed to update student.");
+  }
+}
+
+// Delete Student Action
+async function deleteStudent(roll_no, dept_code) {
+  if (!confirm(`Are you sure you want to delete Student Roll No: ${roll_no}?`)) return;
+
+  try {
+    const res = await fetch(`/api/students/delete?roll_no=${encodeURIComponent(roll_no)}&dept_code=${encodeURIComponent(dept_code)}`, {
+      method: "DELETE"
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      alert("✅ Student deleted successfully!");
+      fetchStats();
+      loadStudentsTable();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Failed to delete student.");
+  }
+}
+
+// Utility Helper
+function escapeQuotes(str) {
+  return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
