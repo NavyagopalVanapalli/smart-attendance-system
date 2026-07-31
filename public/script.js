@@ -756,24 +756,25 @@ if (sendOtpBtn) {
       const data = await response.json();
 
       if (data.success) {
-        alert("✅ " + data.message);
-
-        // Show WhatsApp button and input fields
-        const whatsappLinkWrapper = document.getElementById("whatsappLinkWrapper");
+        // Display OTP on screen
+        const displayOtpCode = document.getElementById("displayOtpCode");
+        const resetOtpCodeInput = document.getElementById("resetOtpCode");
         const whatsappOtpLink = document.getElementById("whatsappOtpLink");
+
+        if (displayOtpCode) displayOtpCode.textContent = data.otp;
+        if (resetOtpCodeInput) resetOtpCodeInput.value = data.otp; // Auto-fill for convenience
 
         if (whatsappOtpLink && data.whatsappUrl) {
           whatsappOtpLink.href = data.whatsappUrl;
+          whatsappOtpLink.style.display = "inline-block";
+        } else if (whatsappOtpLink) {
+          whatsappOtpLink.style.display = "none";
         }
 
-        if (whatsappLinkWrapper) whatsappLinkWrapper.classList.remove("hidden");
+        // Show Step 2 fields
         if (otpStepFields) otpStepFields.classList.remove("hidden");
         if (submitResetPasswordBtn) submitResetPasswordBtn.classList.remove("hidden");
-        
         sendOtpBtn.classList.add("hidden");
-
-        // Automatically trigger WhatsApp window open
-        if (data.whatsappUrl) window.open(data.whatsappUrl, "_blank");
 
       } else {
         alert("Error: " + data.message);
@@ -786,6 +787,18 @@ if (sendOtpBtn) {
     }
   });
 }
+
+const copyOtpBtn = document.getElementById("copyOtpBtn");
+if (copyOtpBtn) {
+  copyOtpBtn.addEventListener("click", () => {
+    const otpText = document.getElementById("displayOtpCode").textContent;
+    navigator.clipboard.writeText(otpText).then(() => {
+      copyOtpBtn.textContent = "✅ Copied!";
+      setTimeout(() => { copyOtpBtn.textContent = "📋 Copy"; }, 2000);
+    });
+  });
+}
+
 
 // STEP 2: Verify OTP & Reset Password Handler
 if (submitResetPasswordBtn) {
