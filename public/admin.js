@@ -30,29 +30,34 @@ async function addTeacher(e) {
     teacher_id: document.getElementById("t_id").value.trim(),
     full_name: document.getElementById("t_name").value.trim(),
     email: document.getElementById("t_email").value.trim(),
+    password_hash: document.getElementById("t_pass").value.trim(), // Passes custom password if entered
     dept_code: document.getElementById("t_dept").value.trim()
   };
 
-  try {
-    const res = await fetch(`${API_BASE}/teachers`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+  const res = await fetch(`${API_BASE}/teachers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
 
-    const result = await res.json();
-    
-    if (res.ok) {
-      alert("Faculty added successfully!");
-      document.getElementById("addTeacherForm").reset();
-      fetchStats(); // Refresh top count cards
-    } else {
-      alert("Error adding faculty: " + result.error);
-    }
-  } catch (err) {
-    alert("Network error. Please check your server log.");
+  const result = await res.json();
+  // Inside your addTeacher form submission success block:
+if (res.ok && data.success) {
+  alert("✅ Faculty added successfully!");
+  document.getElementById("addTeacherForm").reset();
+  
+  // Force fetch updated stats or reload list:
+  if (typeof fetchStats === "function") fetchStats();
+  
+  // Or simply reload the page to see updated tables:
+  location.reload(); 
+} else {
+    alert("Error: " + result.error);
   }
 }
+
+
+
 async function addStudent(e) {
   e.preventDefault();
   const payload = {
