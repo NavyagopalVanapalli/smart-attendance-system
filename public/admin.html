@@ -22,32 +22,31 @@
     <h2>🛡️ System Administrator Dashboard</h2>
     <hr><br>
 
+    
     <!-- Stat Cards -->
     <div class="admin-grid">
-      <div class="stat-card">
-        <h3 id="totalStudents">0</h3>
-        <p>Total Students</p>
-      </div>
-      <div class="stat-card">
-        <h3 id="stat-teachers">0</h3>
-        <p>Total Faculty</p>
-      </div>
-      <div class="stat-card">
-        <h3 id="stat-present" style="color: #28a745;">0</h3>
-        <p>Today's Present</p>
-      </div>
-      <div class="stat-card">
-        <h3 id="stat-absent" style="color: #dc3545;">0</h3>
-        <p>Today's Absent</p>
-      </div>
-    </div>
+  <div class="stat-card">
+    <h2 id="totalStudents" style="color: #28a745;">0</h2>
+    <p>Total Students</p>
+  </div>
 
-    <!-- Quick Actions -->
-    <div class="section-box">
-      <h3>📥 Export Reports</h3>
-      <p>Download complete system attendance data in CSV format.</p>
-      <button class="btn btn-success" onclick="downloadCSV()">Download Attendance CSV</button>
-    </div>
+  <div class="stat-card">
+    <h2 id="totalTeachers" style="color: #28a745;">0</h2>
+    <p>Total Faculty</p>
+  </div>
+
+  <div class="stat-card">
+    <h2 id="todayPresent" style="color: #28a745;">0</h2>
+    <p>Today's Present</p>
+  </div>
+
+  <div class="stat-card">
+    <h2 id="todayAbsent" style="color: #dc3545;">0</h2>
+    <p>Today's Absent</p>
+  </div>
+</div>
+
+
 
     <!-- Add Teacher Form -->
     <div class="section-box">

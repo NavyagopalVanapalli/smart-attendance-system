@@ -10,25 +10,26 @@ async function fetchStats() {
     const res = await fetch('/api/admin/stats');
     const data = await res.json();
 
-    console.log("Stats received:", data);
+    console.log("Stats received from server:", data);
 
-    // Update stat card DOM elements
-    if (document.getElementById("totalStudents")) {
-      document.getElementById("totalStudents").innerText = data.totalStudents;
-    }
-    if (document.getElementById("totalTeachers")) {
-      document.getElementById("totalTeachers").innerText = data.totalTeachers;
-    }
-    if (document.getElementById("todayPresent")) {
-      document.getElementById("todayPresent").innerText = data.todayPresent;
-    }
-    if (document.getElementById("todayAbsent")) {
-      document.getElementById("todayAbsent").innerText = data.todayAbsent;
-    }
+    // Explicitly update each card if the element exists
+    const studentElem = document.getElementById("totalStudents");
+    const teacherElem = document.getElementById("totalTeachers") || document.getElementById("totalFaculty"); // Checks both common ID names
+    const presentElem = document.getElementById("todayPresent");
+    const absentElem = document.getElementById("todayAbsent");
+
+    if (studentElem) studentElem.innerText = data.totalStudents ?? 0;
+    if (teacherElem) teacherElem.innerText = data.totalTeachers ?? 0;
+    if (presentElem) presentElem.innerText = data.todayPresent ?? 0;
+    if (absentElem) absentElem.innerText = data.todayAbsent ?? 0;
+
   } catch (err) {
-    console.error("Failed to load admin stats:", err);
+    console.error("Failed to fetch admin stats:", err);
   }
 }
+
+// Ensure stats load on start
+document.addEventListener("DOMContentLoaded", fetchStats);
 
 // Call on page load
 document.addEventListener("DOMContentLoaded", fetchStats);
