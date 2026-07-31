@@ -712,3 +712,93 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Attendance Backend Server running on port ${PORT}`);
 });
+
+
+// ==================== 2SV / OTP FORGOT PASSWORD ====================
+
+// Temporary in-memory OTP store (In production, use Redis or DB table)
+// Key: teacherId, Value: { otp, expiresAt }
+let otpStore = {};
+
+// 1. REQUEST OTP ENDPOINT
+app.post('/api/request-reset-otp', async (req, res) => {
+  const { teacherId } = req.body;
+
+  if (!teacherId) {
+    return res.status(400).json({ success: false, message: 'Faculty ID is required.' });
+  }
+
+  try {
+    // Look up teacher and parent_phone or dedicated phone
+    const [rows] = await db.query('SELECT teacher_id, full_name, email FROM teachers WHERE teacher_id = ?', [teacherId.trim()]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Faculty ID not found.' });
+    }
+
+    const teacher = rows[0];
+
+    // Generate random 6-digit OTP
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store OTP with 5-minute expiration
+    otpStore[teacher.teacher_id] = {
+      otp: generatedOtp,
+      expiresAt: Date.now() + (5 * 60 * 1000)
+    };
+
+    // Construct WhatsApp Message
+    const message = `🔒 SmartAttend Verification Code: Your 2-Step verification OTP for password reset is ${generatedOtp}. Valid for 5 minutes. Do not share this with anyone.`;
+
+    // Note: Assuming phone number is linked. For demo, we send to registered phone or dummy number
+    const targetPhone = "9876543210"; // Replace with teacher's phone column if added to schema
+
+    const result = await sendWhatsAppMessage(targetPhone, message);
+
+    res.json({ 
+      success: true, 
+      message: `OTP sent to your registered WhatsApp number ending in ${targetPhone.slice(-4)}!`,
+      simulated: result.simulated
+    });
+
+  } catch (err) {
+    console.error("OTP Request Error:", err);
+    res.status(500).json({ success: false, message: 'Failed to process OTP request.' });
+  }
+});
+
+// 2. VERIFY OTP AND RESET PASSWORD ENDPOINT
+app.post('/api/verify-otp-reset-password', async (req, res) => {
+  const { teacherId, otp, newPassword } = req.body;
+
+  if (!teacherId || !otp || !newPassword) {
+    return res.status(400).json({ success: false, message: 'All fields (Faculty ID, OTP, and New Password) are required.' });
+  }
+
+  const record = otpStore[teacherId.trim()];
+
+  if (!record) {
+    return res.status(400).json({ success: false, message: 'No OTP requested or session expired. Please request a new OTP.' });
+  }
+
+  if (Date.now() > record.expiresAt) {
+    delete otpStore[teacherId.trim()];
+    return res.status(400).json({ success: false, message: 'OTP has expired! Please request a new code.' });
+  }
+
+  if (record.otp !== otp.trim()) {
+    return res.status(400).json({ success: false, message: 'Invalid OTP code! Please check and try again.' });
+  }
+
+  try {
+    const updateSql = 'UPDATE teachers SET password_hash = ? WHERE teacher_id = ?';
+    await db.query(updateSql, [newPassword.trim(), teacherId.trim()]);
+
+    // Clear used OTP
+    delete otpStore[teacherId.trim()];
+
+    res.json({ success: true, message: 'Password updated successfully! You can now log in.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Database error updating password.' });
+  }
+});

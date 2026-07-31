@@ -690,56 +690,107 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const forgotPasswordLink = document.getElementById("forgotPasswordLink");
-  const forgotPasswordModal = document.getElementById("forgotPasswordModal");
-  const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
-  const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
+ // Add/Replace inside document.addEventListener("DOMContentLoaded", () => { ... }) in script.js
 
-  if (forgotPasswordLink) {
-    forgotPasswordLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      if (forgotPasswordModal) forgotPasswordModal.classList.remove("hidden");
-    });
-  }
+const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+const forgotPasswordModal = document.getElementById("forgotPasswordModal");
+const closeForgotModalBtn = document.getElementById("closeForgotModalBtn");
+const sendOtpBtn = document.getElementById("sendOtpBtn");
+const otpStepFields = document.getElementById("otpStepFields");
+const submitResetPasswordBtn = document.getElementById("submitResetPasswordBtn");
 
-  if (closeForgotModalBtn) {
-    closeForgotModalBtn.addEventListener("click", () => {
-      if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
-    });
-  }
+if (forgotPasswordLink) {
+  forgotPasswordLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (forgotPasswordModal) {
+      forgotPasswordModal.classList.remove("hidden");
+      if (otpStepFields) otpStepFields.classList.add("hidden");
+      if (submitResetPasswordBtn) submitResetPasswordBtn.classList.add("hidden");
+      if (sendOtpBtn) sendOtpBtn.classList.remove("hidden");
+    }
+  });
+}
 
-  if (submitResetPasswordBtn) {
-    submitResetPasswordBtn.addEventListener("click", async () => {
-      const teacherId = document.getElementById("resetTeacherId").value.trim();
-      const newPassword = document.getElementById("resetNewPassword").value.trim();
+if (closeForgotModalBtn) {
+  closeForgotModalBtn.addEventListener("click", () => {
+    if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+  });
+}
 
-      if (!teacherId || !newPassword) {
-        alert("Please fill in both Faculty ID and New Password.");
-        return;
+// STEP 1: Send OTP Handler
+if (sendOtpBtn) {
+  sendOtpBtn.addEventListener("click", async () => {
+    const teacherId = document.getElementById("resetTeacherId").value.trim();
+
+    if (!teacherId) {
+      alert("Please enter your Faculty ID.");
+      return;
+    }
+
+    sendOtpBtn.disabled = true;
+    sendOtpBtn.textContent = "Sending OTP...";
+
+    try {
+      const response = await fetch('/api/request-reset-otp', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teacherId })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("✅ " + data.message);
+        if (otpStepFields) otpStepFields.classList.remove("hidden");
+        if (submitResetPasswordBtn) submitResetPasswordBtn.classList.remove("hidden");
+        sendOtpBtn.classList.add("hidden");
+      } else {
+        alert("Error: " + data.message);
       }
+    } catch (err) {
+      alert("Failed to connect to backend server.");
+    } finally {
+      sendOtpBtn.disabled = false;
+      sendOtpBtn.textContent = "💬 Send Verification OTP via WhatsApp";
+    }
+  });
+}
 
-      try {
-        const response = await fetch(`${API_BASE_URL}/reset-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ teacherId, newPassword })
-        });
+// STEP 2: Verify OTP & Reset Password Handler
+if (submitResetPasswordBtn) {
+  submitResetPasswordBtn.addEventListener("click", async () => {
+    const teacherId = document.getElementById("resetTeacherId").value.trim();
+    const otp = document.getElementById("resetOtpCode").value.trim();
+    const newPassword = document.getElementById("resetNewPassword").value.trim();
 
-        const data = await response.json();
+    if (!teacherId || !otp || !newPassword) {
+      alert("Please fill in Faculty ID, OTP, and New Password.");
+      return;
+    }
 
-        if (data.success) {
-          alert("✅ Password reset successfully! You can now log in.");
-          document.getElementById("resetTeacherId").value = "";
-          document.getElementById("resetNewPassword").value = "";
-          if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
-        } else {
-          alert("Error: " + data.message);
-        }
-      } catch (err) {
-        alert("Failed to connect to backend server.");
+    try {
+      const response = await fetch('/api/verify-otp-reset-password', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teacherId, otp, newPassword })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("✅ " + data.message);
+        document.getElementById("resetTeacherId").value = "";
+        document.getElementById("resetOtpCode").value = "";
+        document.getElementById("resetNewPassword").value = "";
+        if (forgotPasswordModal) forgotPasswordModal.classList.add("hidden");
+      } else {
+        alert("Error: " + data.message);
       }
-    });
-  }
+    } catch (err) {
+      alert("Failed to connect to backend server.");
+    }
+  });
+}
 
   const activeTeacher = getActiveTeacher();
   if (activeTeacher) {

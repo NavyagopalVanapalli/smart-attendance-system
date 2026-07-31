@@ -47,9 +47,6 @@
   
   <!-- LOGIN SECTION -->
   <section id="loginSection" class="lms-login-wrapper">
-    <a href="/admin.html" style="color: white; font-weight: bold; margin-left: 15px;">
-  🛡️ Admin Panel
-</a>
     <div class="lms-login-card">
       
       <!-- LEFT PANEL: BRANDING & LOGO -->
@@ -80,29 +77,48 @@
         </div>
         <button id="loginBtn" class="btn lms-btn-submit">LOGIN</button>
         <a href="#" id="forgotPasswordLink" style="color: var(--primary); font-size: 0.85rem; display: block; margin-top: 14px; text-decoration: none; font-weight: 600;">Forgot Password?</a>
+          <a href="/admin.html" style="color: white; font-weight: bold; margin-left: 15px;">
+  🛡️ Admin Panel
+</a>
 
         <!-- Forgot Password Modal -->
-        <div id="forgotPasswordModal" class="modal-overlay hidden">
-          <div class="modal-card">
-            <h3>🔑 Reset Password</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Enter your Faculty ID and set a new password.</p>
-            
-            <div class="input-group">
-              <label>Faculty ID</label>
-              <input type="text" id="resetTeacherId" placeholder="e.g. FAC101">
-            </div>
+       <!-- Forgot Password Modal with 2SV OTP -->
+<div id="forgotPasswordModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>🔑 Reset Password (2-Step Verification)</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+      Enter your Faculty ID to receive a WhatsApp verification code.
+    </p>
+    
+    <!-- STEP 1: Faculty ID -->
+    <div class="input-group">
+      <label>Faculty ID</label>
+      <input type="text" id="resetTeacherId" placeholder="e.g. FAC101">
+    </div>
 
-            <div class="input-group">
-              <label>New Password</label>
-              <input type="password" id="resetNewPassword" placeholder="Enter new password">
-            </div>
+    <button id="sendOtpBtn" class="btn btn-secondary" style="width: 100%; margin-bottom: 15px;">
+      💬 Send Verification OTP via WhatsApp
+    </button>
 
-            <div class="modal-actions">
-              <button id="closeForgotModalBtn" class="btn btn-secondary">Cancel</button>
-              <button id="submitResetPasswordBtn" class="btn btn-primary">Reset Password</button>
-            </div>
-          </div>
-        </div>
+    <!-- STEP 2: OTP & New Password (Hidden until OTP is sent) -->
+    <div id="otpStepFields" class="hidden">
+      <div class="input-group">
+        <label>6-Digit OTP Code</label>
+        <input type="text" id="resetOtpCode" placeholder="Enter 6-digit code" maxlength="6">
+      </div>
+
+      <div class="input-group">
+        <label>New Password</label>
+        <input type="password" id="resetNewPassword" placeholder="Enter new password">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="closeForgotModalBtn" class="btn btn-secondary">Cancel</button>
+      <button id="submitResetPasswordBtn" class="btn btn-primary hidden">Reset Password</button>
+    </div>
+  </div>
+</div>
       </div>
 
     </div>
