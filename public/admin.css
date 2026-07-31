@@ -179,3 +179,23 @@ tr:hover td {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.9)) !important;
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4) !important;
 }
+
+
+/* ==================== BACK BUTTON ==================== */
+.btn-back {
+  display: inline-block;
+  margin-bottom: 20px;
+  text-decoration: none; /* Removes the underline from the link */
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.btn-back:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #ffffff;
+  color: #ffffff;
+  /* Override the blue gradient hover from the main .btn class */
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+}
