@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5000/api/admin";
+const API_BASE = "/api/admin";
 
 document.addEventListener("DOMContentLoaded", () => {
   fetchStats();
@@ -22,8 +22,9 @@ async function fetchStats() {
     if (presentElem) presentElem.innerText = data.todayPresent ?? 0;
     if (absentElem) absentElem.innerText = data.todayAbsent ?? 0;
   } catch (err) {
-    console.error("Failed to fetch admin stats:", err);
-  }
+  console.error("Fetch error detail:", err); // Opens in F12 > Console
+  alert("Network error adding faculty: " + err.message);
+}
 }
 
 // ----------------- FACULTY CRUD OPERATIONS -----------------
