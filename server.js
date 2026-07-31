@@ -476,3 +476,12 @@ app.post('/api/admin/students', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const [tables] = await db.query("SHOW TABLES");
+    res.json({ tables });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
