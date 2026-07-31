@@ -599,3 +599,32 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 .toggle-pwd-btn:hover {
   color: #38bdf8;
 }
+
+
+/* FIX MODAL OVERFLOW & SCROLLBARS */
+.modal-overlay {
+  padding: 15px;
+  overflow-y: auto;
+}
+
+.modal-card {
+  max-height: 85vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* Custom Glass Scrollbar for Modals */
+.modal-card::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-card::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+.modal-card::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+.modal-card::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}

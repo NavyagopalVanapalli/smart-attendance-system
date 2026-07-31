@@ -733,7 +733,7 @@ if (closeForgotModalBtn) {
   });
 }
 
-// Step 1: Request & Open WhatsApp OTP Link
+// Step 1: Request OTP & Open WhatsApp Link
 if (sendOtpBtn) {
   sendOtpBtn.addEventListener("click", async () => {
     const teacherId = document.getElementById("resetTeacherId").value.trim();
@@ -744,7 +744,7 @@ if (sendOtpBtn) {
     }
 
     sendOtpBtn.disabled = true;
-    sendOtpBtn.textContent = "Generating OTP...";
+    sendOtpBtn.textContent = "Processing Request...";
 
     try {
       const response = await fetch('/api/request-reset-otp', {
@@ -756,25 +756,26 @@ if (sendOtpBtn) {
       const data = await response.json();
 
       if (data.success) {
-        // Display OTP on screen
-        const displayOtpCode = document.getElementById("displayOtpCode");
-        const resetOtpCodeInput = document.getElementById("resetOtpCode");
-        const whatsappOtpLink = document.getElementById("whatsappOtpLink");
+        alert("✅ " + data.message);
 
-        if (displayOtpCode) displayOtpCode.textContent = data.otp;
-        if (resetOtpCodeInput) resetOtpCodeInput.value = data.otp; // Auto-fill for convenience
+        const whatsappLinkWrapper = document.getElementById("whatsappLinkWrapper");
+        const whatsappOtpLink = document.getElementById("whatsappOtpLink");
 
         if (whatsappOtpLink && data.whatsappUrl) {
           whatsappOtpLink.href = data.whatsappUrl;
-          whatsappOtpLink.style.display = "inline-block";
-        } else if (whatsappOtpLink) {
-          whatsappOtpLink.style.display = "none";
         }
 
-        // Show Step 2 fields
+        // Show WhatsApp Opener and Step 2 fields
+        if (whatsappLinkWrapper) whatsappLinkWrapper.classList.remove("hidden");
         if (otpStepFields) otpStepFields.classList.remove("hidden");
         if (submitResetPasswordBtn) submitResetPasswordBtn.classList.remove("hidden");
+        
         sendOtpBtn.classList.add("hidden");
+
+        // Automatically open WhatsApp window
+        if (data.whatsappUrl) {
+          window.open(data.whatsappUrl, "_blank");
+        }
 
       } else {
         alert("Error: " + data.message);
@@ -783,7 +784,7 @@ if (sendOtpBtn) {
       alert("Failed to connect to backend server.");
     } finally {
       sendOtpBtn.disabled = false;
-      sendOtpBtn.textContent = "⚡ Generate Verification OTP";
+      sendOtpBtn.textContent = "💬 Request WhatsApp OTP";
     }
   });
 }

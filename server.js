@@ -723,7 +723,7 @@ app.listen(PORT, '0.0.0.0', () => {
 // Key: teacherId, Value: { otp, expiresAt }
 let otpStore = {};
 
-// REQUEST RESET OTP ENDPOINT
+// REQUEST RESET OTP ENDPOINT (Secure WhatsApp Redirect)
 app.post('/api/request-reset-otp', async (req, res) => {
   const { teacherId } = req.body;
 
@@ -740,8 +740,12 @@ app.post('/api/request-reset-otp', async (req, res) => {
 
     const teacher = rows[0];
 
-    // Clean phone number (Ensure 91 prefix)
-    let cleanPhone = (teacher.phone || "").replace(/\D/g, "");
+    if (!teacher.phone) {
+      return res.status(400).json({ success: false, message: 'No registered phone number found for this Faculty ID. Please contact Administrator.' });
+    }
+
+    // Clean phone number (Ensure 91 country code prefix for India)
+    let cleanPhone = teacher.phone.replace(/\D/g, "");
     if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
     // Generate random 6-digit OTP
@@ -753,17 +757,15 @@ app.post('/api/request-reset-otp', async (req, res) => {
       expiresAt: Date.now() + (5 * 60 * 1000)
     };
 
-    const messageText = `🔒 SmartAttend Verification Code: Your OTP for resetting password is ${generatedOtp}. Valid for 5 minutes.`;
+    const messageText = `🔒 SmartAttend Verification Code: Your OTP for resetting password is ${generatedOtp}. Valid for 5 minutes. Do not share this with anyone.`;
     
-    // Standardized WhatsApp API URL format (Reliable across all browsers)
-    const whatsappUrl = cleanPhone 
-      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(messageText)}`
-      : null;
+    // Standardized WhatsApp Deep Link (Opens WhatsApp application directly)
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(messageText)}`;
 
+    // Note: OTP is NOT returned in JSON to prevent local UI inspection misuse
     res.json({ 
       success: true, 
-      message: `Verification OTP generated for ${teacher.full_name}!`,
-      otp: generatedOtp, // Transmitted for quick UI display/autofill
+      message: `OTP generated for ${teacher.full_name}! Send it via WhatsApp to receive your code.`,
       whatsappUrl: whatsappUrl
     });
 
